@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AquaPin - Serverless Backend for Real-Time Waterlogging & Flood Alerts
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: nodejs20.x
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref AquaPinTable
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+
+Resources:
+  # ── DynamoDB Table ───────────────────────────────────────────
+  AquaPinTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: aquapin-pins
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pinId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pinId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: AquaPin
+
+  # ── API Gateway (HTTP API) ───────────────────────────────────
+  AquaPinApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Name: AquaPinApi
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+
+  # ── Lambda Function: POST /pins ──────────────────────────────
+  PostPinFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambdas/postPin.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AquaPinTable
+      Events:
+        PostPinEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AquaPinApi
+            Path: /pins
+            Method: post
+
+  # ── Lambda Function: GET /pins ───────────────────────────────
+  GetPinsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: lambdas/getPins.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref AquaPinTable
+      Events:
+        GetPinsEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref AquaPinApi
+            Path: /pins
+            Method: get
+
+Outputs:
+  ApiEndpoint:
+    Description: HTTP API Gateway endpoint URL for frontend configuration
+    Value: !Sub "https://${AquaPinApi}.execute-api.${AWS::Region}.amazonaws.com"
+  TableName:
+    Description: DynamoDB Table Name
+    Value: !Ref AquaPinTable

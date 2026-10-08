@@ -39,14 +39,14 @@ const SEVERITY_OPTIONS = [
  *  @param {Function} onSubmit — called with { severity } when user confirms
  *                               (will trigger GPS + API call in Phase 3)
  */
-function ReportModal({ isOpen, onClose, onSubmit }) {
+function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = false }) {
   const [selected, setSelected] = useState(null)
 
   // Don't render anything if closed — keeps DOM clean
   if (!isOpen) return null
 
   function handleSubmit() {
-    if (!selected) return
+    if (!selected || isSubmitting) return
     onSubmit({ severity: selected })
     setSelected(null) // reset for next time
   }
@@ -110,13 +110,17 @@ function ReportModal({ isOpen, onClose, onSubmit }) {
           type="button"
           className={[
             'modal-submit',
-            selected ? 'modal-submit--active' : '',
+            selected && !isSubmitting ? 'modal-submit--active' : '',
           ].join(' ')}
           onClick={handleSubmit}
-          disabled={!selected}
-          aria-disabled={!selected}
+          disabled={!selected || isSubmitting}
+          aria-disabled={!selected || isSubmitting}
         >
-          {selected ? `📍 Drop Pin — ${SEVERITY_OPTIONS.find(o => o.id === selected)?.label}` : 'Select a severity above'}
+          {isSubmitting
+            ? '⏳ Submitting report...'
+            : selected
+            ? `📍 Drop Pin — ${SEVERITY_OPTIONS.find(o => o.id === selected)?.label}`
+            : 'Select a severity above'}
         </button>
 
       </div>

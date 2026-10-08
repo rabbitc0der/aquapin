@@ -6,21 +6,8 @@ import './MapView.css'
 // ── Constants ────────────────────────────────────────────────
 
 /** Default center: DTU, Delhi — our hackathon venue */
-const DEFAULT_CENTER = [28.7497, 77.1183]
-const DEFAULT_ZOOM   = 14
-
-/**
- * MOCK_PINS — Hardcoded sample data so the map looks populated
- * before the real AWS backend is connected (Phase 2).
- * Shape mirrors the DynamoDB schema: { pinId, lat, lng, severity }
- */
-const MOCK_PINS = [
-  { pinId: 'mock-1', lat: 28.7520, lng: 77.1150, severity: 'danger'  },
-  { pinId: 'mock-2', lat: 28.7480, lng: 77.1220, severity: 'warning' },
-  { pinId: 'mock-3', lat: 28.7510, lng: 77.1200, severity: 'caution' },
-  { pinId: 'mock-4', lat: 28.7460, lng: 77.1160, severity: 'danger'  },
-  { pinId: 'mock-5', lat: 28.7500, lng: 77.1250, severity: 'caution' },
-]
+export const DEFAULT_CENTER = [28.7497, 77.1183]
+export const DEFAULT_ZOOM   = 14
 
 // ── Helper: create a custom teardrop marker icon ─────────────
 
@@ -66,74 +53,105 @@ function createUserIcon() {
  * Responsibilities:
  *  - Initialise the Leaflet map once on mount (useRef prevents re-init)
  *  - Request user GPS; pan to it if granted, fall back to DEFAULT_CENTER
- *  - Render mock severity pins with custom teardrop icons
+ *  - Render dynamic severity pins with custom teardrop icons via LayerGroup
  *  - Clean up the map instance on unmount
  *
- * Props: none (will accept `pins` prop in Phase 3 when backend is live)
+ * Props:
+ *  @param {Array} pins — list of pin objects from backend
+ *  @param {Function} onLocationFound — callback providing user's coordinates [lat, lng]
  */
-function MapView() {
-  const containerRef = useRef(null)  // the DOM node Leaflet attaches to
-  const mapRef       = useRef(null)  // the Leaflet map instance
+function MapView({ pins = [], onLocationFound }) {
+  const containerRef    = useRef(null)  // the DOM node Leaflet attaches to
+  const mapRef          = useRef(null)  // the Leaflet map instance
+  const markersLayerRef = useRef(null)  // Leaflet LayerGroup for dynamic pins
 
+  // 1. Initialise map instance once on mount
   useEffect(() => {
-    // Guard: only initialise once
     if (mapRef.current) return
 
-    // ── 1. Initialise map ──────────────────────────────────
     const map = L.map(containerRef.current, {
-      center:          DEFAULT_CENTER,
-      zoom:            DEFAULT_ZOOM,
-      zoomControl:     true,
+      center:             DEFAULT_CENTER,
+      zoom:               DEFAULT_ZOOM,
+      zoomControl:        true,
       attributionControl: true,
     })
     mapRef.current = map
 
-    // ── 2. OpenStreetMap tile layer (no API key needed) ────
+    // OpenStreetMap tile layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
     }).addTo(map)
 
-    // ── 3. Mock severity pins ──────────────────────────────
-    MOCK_PINS.forEach(({ pinId, lat, lng, severity }) => {
-      const severityLabel = {
-        caution: 'Ankle-deep — passable with caution',
-        warning: 'Knee-deep — avoid if possible',
-        danger:  'Road blocked — do not enter',
-      }[severity]
+    // Markers layer group
+    const markersLayer = L.layerGroup().addTo(map)
+    markersLayerRef.current = markersLayer
 
-      L.marker([lat, lng], { icon: createPinIcon(severity) })
-        .bindPopup(
-          `<strong>${severityLabel}</strong><br/><small>Community report</small>`,
-          { className: 'aquapin-popup' }
-        )
-        .addTo(map)
-    })
-
-    // ── 4. Request user GPS ────────────────────────────────
+    // Request user GPS
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords
-          // Pan to user's real location
           map.setView([latitude, longitude], DEFAULT_ZOOM)
-          // Drop pulsing user-location dot
-          L.marker([latitude, longitude], { icon: createUserIcon() })
-            .addTo(map)
+          L.marker([latitude, longitude], { icon: createUserIcon() }).addTo(map)
+          if (onLocationFound) {
+            onLocationFound([latitude, longitude])
+          }
         },
         () => {
-          // Permission denied or unavailable — stay on DEFAULT_CENTER
           console.info('[AquaPin] Geolocation unavailable; using default center.')
+          if (onLocationFound) {
+            onLocationFound(DEFAULT_CENTER)
+          }
         }
       )
+    } else if (onLocationFound) {
+      onLocationFound(DEFAULT_CENTER)
     }
 
-    // ── 5. Cleanup on unmount ──────────────────────────────
     return () => {
       map.remove()
       mapRef.current = null
+      markersLayerRef.current = null
     }
-  }, []) // empty deps — run once on mount only
+  }, [onLocationFound])
+
+  // 2. Synchronize pins whenever props change
+  useEffect(() => {
+    if (!mapRef.current || !markersLayerRef.current) return
+
+    markersLayerRef.current.clearLayers()
+
+    pins.forEach(({ pinId, lat, lng, severity, comment, createdAt }) => {
+      const severityLabel = {
+        caution: 'Ankle-deep — passable with caution',
+        warning: 'Knee-deep — avoid if possible',
+        danger:  'Road blocked — do not enter',
+      }[severity] || 'Waterlogging report'
+
+      const timeText = createdAt
+        ? new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : 'Just now'
+
+      const commentHtml = comment
+        ? `<div style="margin-top: 4px; font-style: italic; color: #475569;">"${comment}"</div>`
+        : ''
+
+      const popupContent = `
+        <div style="font-family: inherit; font-size: 13px;">
+          <strong style="font-size: 14px;">${severityLabel}</strong>
+          ${commentHtml}
+          <div style="margin-top: 6px; font-size: 11px; color: #94a3b8;">
+            🕒 Reported at ${timeText} • Community alert
+          </div>
+        </div>
+      `
+
+      L.marker([lat, lng], { icon: createPinIcon(severity) })
+        .bindPopup(popupContent, { className: 'aquapin-popup' })
+        .addTo(markersLayerRef.current)
+    })
+  }, [pins])
 
   return <div ref={containerRef} className="map-container" />
 }
