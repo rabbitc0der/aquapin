@@ -64,8 +64,60 @@
 .modal-sheet__subtitle {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
 }
+
+/* ── Location badge in sheet ───────────────────────────────── */
+.modal-sheet__location {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.modal-sheet__location .location-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 6px var(--color-primary);
+}
+
+/* ── Comment input in sheet ────────────────────────────────── */
+.modal-sheet__comment-group {
+  margin-bottom: var(--space-5);
+}
+
+.modal-sheet__comment-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.modal-sheet__comment-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.modal-sheet__comment-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-glow);
+}
+
 
 /* ── Severity Option Cards ─────────────────────────────────── */
 .severity-options {

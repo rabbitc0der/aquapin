@@ -152,7 +152,7 @@ function App() {
   /**
    * handleReport — submits waterlogging report to backend
    */
-  async function handleReport({ severity }) {
+  async function handleReport({ severity, comment }) {
     try {
       setIsSubmitting(true)
 
@@ -167,8 +167,9 @@ function App() {
         lat,
         lng,
         severity,
-        comment: 'Reported via AquaPin mobile web',
+        comment: comment || 'Reported via AquaPin mobile web',
       })
+
 
       if (newPin) {
         setPins((prev) => [newPin, ...prev])
@@ -233,7 +234,9 @@ function App() {
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleReport}
         isSubmitting={isSubmitting}
+        userCoords={userCoords}
       />
+
 
       {/* ── Toast notification ────────────────────────────── */}
       <Toast
