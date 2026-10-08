@@ -4,6 +4,7 @@ import Header      from './components/Header/Header'
 import MapView, { DEFAULT_CENTER } from './components/MapView/MapView'
 import FAB         from './components/FAB/FAB'
 import ReportModal from './components/ReportModal/ReportModal'
+import Toast       from './components/Toast/Toast'
 import { getPins, postPin } from './services/api'
 
 /**
@@ -20,6 +21,22 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [userCoords, setUserCoords] = useState(DEFAULT_CENTER)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Toast notification state
+  const [toast, setToast] = useState({
+    visible:  false,
+    title:    '',
+    message:  '',
+    variant:  'success',
+  })
+
+  const showToast = useCallback(({ title, message = '', variant = 'success' }) => {
+    setToast({ visible: true, title, message, variant })
+  }, [])
+
+  const hideToast = useCallback(() => {
+    setToast((prev) => ({ ...prev, visible: false }))
+  }, [])
 
   // Fetch active pins on mount and periodic refresh (every 30 seconds)
   const refreshPins = useCallback(async () => {
@@ -69,9 +86,18 @@ function App() {
       }
 
       setIsModalOpen(false)
+      showToast({
+        title:   'Report submitted!',
+        message: 'Warning added to the community map.',
+        variant: 'success',
+      })
     } catch (err) {
       console.error('[AquaPin] Failed to report pin:', err)
-      alert('Could not submit report. Please check your connection and try again.')
+      showToast({
+        title:   'Submission failed',
+        message: 'Check your connection and try again.',
+        variant: 'error',
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -104,6 +130,15 @@ function App() {
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleReport}
         isSubmitting={isSubmitting}
+      />
+
+      {/* ── Toast notification ────────────────────────────── */}
+      <Toast
+        isVisible={toast.visible}
+        title={toast.title}
+        message={toast.message}
+        variant={toast.variant}
+        onHide={hideToast}
       />
 
     </div>
