@@ -29,13 +29,96 @@
   color: var(--color-primary); /* "Aqua" in blue, "Pin" in white */
 }
 
+/* ── Header Right Controls (Refresh + Legend) ──────────────── */
+.header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;        /* push controls to the right */
+}
+
+/* ── Live Auto-Refresh Badge ───────────────────────────────── */
+.refresh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.refresh-badge:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
+}
+
+.refresh-badge:active {
+  transform: translateY(0);
+}
+
+.refresh-badge__pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+  animation: live-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+}
+
+.refresh-badge__icon {
+  font-size: 13px;
+  line-height: 1;
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.refresh-badge:hover .refresh-badge__icon {
+  transform: rotate(45deg);
+}
+
+.refresh-badge--refreshing .refresh-badge__icon {
+  animation: spin 0.8s linear infinite;
+  color: var(--color-primary);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.refresh-badge__text {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 /* ── Severity Legend ───────────────────────────────────────── */
 .header__legend {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-left: auto;        /* push legend to the right */
 }
+
 
 .legend-chip {
   display: flex;
@@ -89,6 +172,10 @@
 
 /* ── Responsive: hide legend labels on small screens ──────── */
 @media (max-width: 480px) {
+  .header__right {
+    gap: var(--space-2);
+  }
+
   .legend-chip__label {
     display: none;          /* show dot only on phones */
   }
@@ -96,4 +183,10 @@
   .legend-chip {
     padding: var(--space-1) var(--space-2);
   }
+
+  .refresh-badge {
+    padding: 3px 7px;
+    gap: 4px;
+  }
 }
+

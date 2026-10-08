@@ -15,11 +15,15 @@ const SEVERITY_LEGEND = [
  *
  * Shows:
  *  - AquaPin brand (left)
+ *  - Live status & countdown refresh button (center-right)
  *  - Severity legend chips (right) — visual key for the map pins
  *
- * Props: none (stateless display component)
+ * Props:
+ *  @param {number} countdown - seconds remaining until next auto-refresh
+ *  @param {boolean} isRefreshing - whether a fetch is currently in flight
+ *  @param {Function} onRefresh - callback to manually trigger an immediate refresh
  */
-function Header() {
+function Header({ countdown = 30, isRefreshing = false, onRefresh }) {
   return (
     <>
       {/* ── Brand ─────────────────────────────────────────── */}
@@ -30,22 +34,41 @@ function Header() {
         </span>
       </div>
 
-      {/* ── Severity Legend ───────────────────────────────── */}
-      <nav className="header__legend" aria-label="Pin severity legend">
-        {SEVERITY_LEGEND.map(({ id, label, modifier }) => (
-          <div
-            key={id}
-            className={`legend-chip legend-chip--${modifier}`}
-            role="img"
-            aria-label={label}
-          >
-            <span className="legend-chip__dot" aria-hidden="true" />
-            <span className="legend-chip__label">{label}</span>
-          </div>
-        ))}
-      </nav>
+      {/* ── Header Controls (Live Status + Legend) ─────────── */}
+      <div className="header__right">
+        {/* Live Refresh Badge */}
+        <button
+          type="button"
+          className={`refresh-badge ${isRefreshing ? 'refresh-badge--refreshing' : ''}`}
+          onClick={onRefresh}
+          title="Click to refresh live pins now"
+          aria-label={isRefreshing ? 'Refreshing live pins' : `Next refresh in ${countdown} seconds. Click to refresh now`}
+        >
+          <span className="refresh-badge__pulse" aria-hidden="true" />
+          <span className="refresh-badge__icon" aria-hidden="true">↻</span>
+          <span className="refresh-badge__text">
+            {isRefreshing ? 'Syncing…' : `${countdown}s`}
+          </span>
+        </button>
+
+        {/* ── Severity Legend ───────────────────────────────── */}
+        <nav className="header__legend" aria-label="Pin severity legend">
+          {SEVERITY_LEGEND.map(({ id, label, modifier }) => (
+            <div
+              key={id}
+              className={`legend-chip legend-chip--${modifier}`}
+              role="img"
+              aria-label={label}
+            >
+              <span className="legend-chip__dot" aria-hidden="true" />
+              <span className="legend-chip__label">{label}</span>
+            </div>
+          ))}
+        </nav>
+      </div>
     </>
   )
 }
 
 export default Header
+

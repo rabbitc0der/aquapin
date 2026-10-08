@@ -22,6 +22,11 @@ function App() {
   const [userCoords, setUserCoords] = useState(DEFAULT_CENTER)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Live auto-refresh countdown state (30 seconds)
+  const REFRESH_INTERVAL = 30
+  const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
   // Toast notification state
   const [toast, setToast] = useState({
     visible:  false,
@@ -38,8 +43,9 @@ function App() {
     setToast((prev) => ({ ...prev, visible: false }))
   }, [])
 
-  // Fetch active pins on mount and periodic refresh (every 30 seconds)
+  // Fetch active pins on mount and periodic refresh
   const refreshPins = useCallback(async () => {
+    setIsRefreshing(true)
     try {
       const fetchedPins = await getPins()
       if (fetchedPins && fetchedPins.length > 0) {
@@ -47,14 +53,36 @@ function App() {
       }
     } catch (err) {
       console.warn('[AquaPin] Error refreshing pins:', err)
+    } finally {
+      setIsRefreshing(false)
     }
   }, [])
 
+  // Countdown timer: ticks down every second and triggers refreshPins when reaching 0
   useEffect(() => {
-    refreshPins()
-    const interval = setInterval(refreshPins, 30000)
-    return () => clearInterval(interval)
+    Promise.resolve().then(() => {
+      refreshPins()
+    })
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          refreshPins()
+          return REFRESH_INTERVAL
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
   }, [refreshPins])
+
+
+  const handleManualRefresh = useCallback(() => {
+    setCountdown(REFRESH_INTERVAL)
+    refreshPins()
+  }, [refreshPins])
+
 
   const handleLocationFound = useCallback((coords) => {
     setUserCoords(coords)
@@ -106,10 +134,14 @@ function App() {
   return (
     <div className="app-shell">
 
-      {/* ── Header ────────────────────────────────────────── */}
       <header className="app-header">
-        <Header />
+        <Header
+          countdown={countdown}
+          isRefreshing={isRefreshing}
+          onRefresh={handleManualRefresh}
+        />
       </header>
+
 
       {/* ── Map ───────────────────────────────────────────── */}
       <main className="app-map">
