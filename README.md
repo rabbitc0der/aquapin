@@ -202,7 +202,7 @@ Submit a new waterlogging report.
 
 ## 👥 Team
 
-**AquaPin** — Built for [Hackathon Name] by **rabbitc0der**
+**AquaPin** — Built for Environmental Hacks by **rabbitc0der**
 
 ---
 
