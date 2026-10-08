@@ -1,4 +1,5 @@
 import './App.css'
+import Header from './components/Header/Header'
 
 /**
  * App — Top-level shell component.
@@ -6,16 +7,15 @@ import './App.css'
  * Responsibilities:
  *  - Defines the three layout regions: Header, Map, FAB
  *  - Owns no business logic (state lives in child components & hooks)
- *  - Each region is a placeholder — real components drop in one by one
+ *  - Real components slot in one by one as they are built
  */
 function App() {
   return (
     <div className="app-shell">
 
-      {/* ── Header region ─────────────────────────────────── */}
-      {/* Will be replaced by <Header /> component in next step */}
+      {/* ── Header ────────────────────────────────────────── */}
       <header className="app-header">
-        {/* placeholder */}
+        <Header />
       </header>
 
       {/* ── Map region ────────────────────────────────────── */}

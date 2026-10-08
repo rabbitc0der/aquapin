@@ -1,0 +1,99 @@
+/* ============================================================
+   Header — Component Styles
+   Scoped to .header-* classes only.
+   Layout (position, z-index) is handled by .app-header in App.css
+   ============================================================ */
+
+/* ── Brand (logo + name) ───────────────────────────────────── */
+.header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  user-select: none;
+}
+
+.header__logo {
+  font-size: 22px;          /* emoji pin icon */
+  line-height: 1;
+}
+
+.header__name {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.3px;
+}
+
+.header__name span {
+  color: var(--color-primary); /* "Aqua" in blue, "Pin" in white */
+}
+
+/* ── Severity Legend ───────────────────────────────────────── */
+.header__legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;        /* push legend to the right */
+}
+
+.legend-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast);
+}
+
+/* Dot indicator inside each chip */
+.legend-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* -- Severity variants -- */
+.legend-chip--caution {
+  color: var(--color-caution);
+  background: rgba(234, 179, 8, 0.10);
+  border-color: rgba(234, 179, 8, 0.25);
+}
+.legend-chip--caution .legend-chip__dot {
+  background: var(--color-caution);
+}
+
+.legend-chip--warning {
+  color: var(--color-warning);
+  background: rgba(249, 115, 22, 0.10);
+  border-color: rgba(249, 115, 22, 0.25);
+}
+.legend-chip--warning .legend-chip__dot {
+  background: var(--color-warning);
+}
+
+.legend-chip--danger {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+.legend-chip--danger .legend-chip__dot {
+  background: var(--color-danger);
+}
+
+/* ── Responsive: hide legend labels on small screens ──────── */
+@media (max-width: 480px) {
+  .legend-chip__label {
+    display: none;          /* show dot only on phones */
+  }
+
+  .legend-chip {
+    padding: var(--space-1) var(--space-2);
+  }
+}
