@@ -1,0 +1,181 @@
+/* ============================================================
+   ReportModal — Bottom Sheet Styles
+   Slides up from the bottom when the FAB is tapped.
+   Contains the 3 severity options + a submit button.
+   ============================================================ */
+
+/* ── Backdrop ──────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+
+  /* Fade in */
+  animation: backdrop-in var(--transition-normal) ease forwards;
+}
+
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Sheet ─────────────────────────────────────────────────── */
+.modal-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+
+  background: var(--color-surface);
+  border-top: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: var(--space-6);
+  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom));
+
+  /* Slide up */
+  animation: sheet-in var(--transition-normal) cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0);    }
+}
+
+/* ── Drag handle ───────────────────────────────────────────── */
+.modal-sheet__handle {
+  width: 40px;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  margin: 0 auto var(--space-6);
+}
+
+/* ── Title ─────────────────────────────────────────────────── */
+.modal-sheet__title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.modal-sheet__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-6);
+}
+
+/* ── Severity Option Cards ─────────────────────────────────── */
+.severity-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.severity-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface-raised);
+  cursor: pointer;
+  transition:
+    border-color  var(--transition-fast),
+    background    var(--transition-fast),
+    transform     var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.severity-card:hover {
+  transform: translateX(4px);
+}
+
+.severity-card:active {
+  transform: translateX(2px) scale(0.99);
+}
+
+/* Selected state */
+.severity-card--selected-caution {
+  border-color: var(--color-caution);
+  background: rgba(234, 179, 8, 0.08);
+}
+.severity-card--selected-warning {
+  border-color: var(--color-warning);
+  background: rgba(249, 115, 22, 0.08);
+}
+.severity-card--selected-danger {
+  border-color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Icon dot on the card */
+.severity-card__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.severity-card__dot--caution { background: var(--color-caution); }
+.severity-card__dot--warning { background: var(--color-warning); }
+.severity-card__dot--danger  { background: var(--color-danger);  }
+
+.severity-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.severity-card__label {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.severity-card__desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ── Submit Button ─────────────────────────────────────────── */
+.modal-submit {
+  width: 100%;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition:
+    opacity    var(--transition-fast),
+    transform  var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.modal-submit:disabled {
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.modal-submit--active {
+  background: var(--color-danger);
+  color: #fff;
+  box-shadow: 0 4px 16px var(--color-danger-glow);
+}
+
+.modal-submit--active:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--color-danger-glow);
+}
+
+.modal-submit--active:active {
+  transform: translateY(0);
+}
