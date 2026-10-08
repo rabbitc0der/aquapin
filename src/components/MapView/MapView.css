@@ -1,0 +1,102 @@
+/* ============================================================
+   MapView — Component Styles
+   Leaflet renders into .map-container.
+   We also override a few Leaflet defaults here so they match
+   our dark theme.
+   ============================================================ */
+
+/* ── Map Container: fills the entire app-map region ───────── */
+.map-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Leaflet tile layer: slight dark tint ──────────────────── */
+.map-container .leaflet-tile {
+  filter: brightness(0.85) saturate(0.9);
+}
+
+/* ── Leaflet attribution: style to match dark theme ───────── */
+.map-container .leaflet-control-attribution {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur);
+  color: var(--color-text-muted) !important;
+  font-size: 10px;
+  border-radius: var(--radius-sm) 0 0 0;
+  padding: 2px 6px;
+}
+
+.map-container .leaflet-control-attribution a {
+  color: var(--color-text-muted) !important;
+}
+
+/* ── Leaflet zoom controls ─────────────────────────────────── */
+.map-container .leaflet-control-zoom {
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.map-container .leaflet-control-zoom a {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur);
+  color: var(--color-text-primary) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 18px !important;
+  transition: background var(--transition-fast);
+}
+
+.map-container .leaflet-control-zoom a:hover {
+  background: var(--color-surface-raised) !important;
+}
+
+/* ── Custom Pin Marker ─────────────────────────────────────── */
+.aquapin-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50% 50% 50% 0;  /* teardrop shape */
+  transform: rotate(-45deg);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-fast);
+}
+
+.aquapin-marker--caution  { background: var(--color-caution);  box-shadow: 0 4px 14px var(--color-caution-glow); }
+.aquapin-marker--warning  { background: var(--color-warning);  box-shadow: 0 4px 14px var(--color-warning-glow); }
+.aquapin-marker--danger   { background: var(--color-danger);   box-shadow: 0 4px 14px var(--color-danger-glow);  }
+
+/* ── GPS accuracy circle (pulse animation) ─────────────────── */
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(2.4); opacity: 0;   }
+}
+
+.user-location-marker {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+
+.user-location-marker__dot {
+  width: 16px;
+  height: 16px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px var(--color-primary-glow);
+}
+
+.user-location-marker__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--color-primary-glow);
+  animation: pulse-ring 2s ease-out infinite;
+}

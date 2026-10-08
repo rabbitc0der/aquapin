@@ -1,5 +1,6 @@
 import './App.css'
-import Header from './components/Header/Header'
+import Header  from './components/Header/Header'
+import MapView from './components/MapView/MapView'
 
 /**
  * App — Top-level shell component.
@@ -18,10 +19,9 @@ function App() {
         <Header />
       </header>
 
-      {/* ── Map region ────────────────────────────────────── */}
-      {/* Will be replaced by <MapView /> component */}
+      {/* ── Map ───────────────────────────────────────────── */}
       <main className="app-map">
-        <p className="app-map__placeholder">Map loads here</p>
+        <MapView />
       </main>
 
       {/* ── Floating Action Button region ─────────────────── */}
