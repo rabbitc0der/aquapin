@@ -3,11 +3,10 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './MapView.css'
 
-// ── Constants ────────────────────────────────────────────────
+import { DEFAULT_CENTER, DEFAULT_ZOOM } from '../../constants'
 
-/** Default center: DTU, Delhi — our hackathon venue */
-export const DEFAULT_CENTER = [28.7497, 77.1183]
-export const DEFAULT_ZOOM   = 14
+// Re-export constants for backwards compatibility
+export { DEFAULT_CENTER, DEFAULT_ZOOM }
 
 // ── Helper: create a custom teardrop marker icon ─────────────
 
@@ -54,13 +53,16 @@ function createUserIcon() {
  *  - Initialise the Leaflet map once on mount (useRef prevents re-init)
  *  - Request user GPS; pan to it if granted, fall back to DEFAULT_CENTER
  *  - Render dynamic severity pins with custom teardrop icons via LayerGroup
+ *  - Provide interactive "Still Flooded?" upvote/confirmation on pins
  *  - Clean up the map instance on unmount
  *
  * Props:
  *  @param {Array} pins — list of pin objects from backend
  *  @param {Function} onLocationFound — callback providing user's coordinates [lat, lng]
+ *  @param {Function} onConfirmPin — callback when user verifies flood is still active
+ *  @param {Set|Array} confirmedPinIds — set of pinIds already confirmed by the user in this session
  */
-function MapView({ pins = [], onLocationFound }) {
+function MapView({ pins = [], onLocationFound, onConfirmPin, confirmedPinIds = new Set() }) {
   const containerRef    = useRef(null)  // the DOM node Leaflet attaches to
   const mapRef          = useRef(null)  // the Leaflet map instance
   const markersLayerRef = useRef(null)  // Leaflet LayerGroup for dynamic pins
@@ -122,7 +124,13 @@ function MapView({ pins = [], onLocationFound }) {
 
     markersLayerRef.current.clearLayers()
 
-    pins.forEach(({ pinId, lat, lng, severity, comment, createdAt }) => {
+    pins.forEach(({ pinId, lat, lng, severity, comment, createdAt, confirmations = 0 }) => {
+      const isConfirmed = confirmedPinIds instanceof Set
+        ? confirmedPinIds.has(pinId)
+        : Array.isArray(confirmedPinIds) && confirmedPinIds.includes(pinId)
+
+      const totalConfirmations = (Number(confirmations) || 0) + (isConfirmed ? 1 : 0)
+
       const severityLabel = {
         caution: 'Ankle-deep — passable with caution',
         warning: 'Knee-deep — avoid if possible',
@@ -134,15 +142,29 @@ function MapView({ pins = [], onLocationFound }) {
         : 'Just now'
 
       const commentHtml = comment
-        ? `<div style="margin-top: 4px; font-style: italic; color: #475569;">"${comment}"</div>`
+        ? `<div class="pin-popup__comment">"${comment}"</div>`
         : ''
 
       const popupContent = `
-        <div style="font-family: inherit; font-size: 13px;">
-          <strong style="font-size: 14px;">${severityLabel}</strong>
+        <div class="pin-popup">
+          <div class="pin-popup__header">
+            <span class="pin-popup__badge pin-popup__badge--${severity}">${severity}</span>
+            <span class="pin-popup__time">🕒 ${timeText}</span>
+          </div>
+          <div class="pin-popup__desc">${severityLabel}</div>
           ${commentHtml}
-          <div style="margin-top: 6px; font-size: 11px; color: #94a3b8;">
-            🕒 Reported at ${timeText} • Community alert
+          <div class="pin-popup__footer">
+            <button
+              type="button"
+              class="pin-popup__confirm-btn ${isConfirmed ? 'is-confirmed' : ''}"
+              data-action="confirm-pin"
+              data-pin-id="${pinId}"
+              ${isConfirmed ? 'disabled' : ''}
+              title="${isConfirmed ? 'You have verified this flood warning' : 'Confirm this flood is still active'}"
+            >
+              <span>${isConfirmed ? '✅ Confirmed by you' : '🌊 Still Flooded?'}</span>
+              ${totalConfirmations > 0 ? `<span style="opacity: 0.85;">(${totalConfirmations})</span>` : ''}
+            </button>
           </div>
         </div>
       `
@@ -151,9 +173,29 @@ function MapView({ pins = [], onLocationFound }) {
         .bindPopup(popupContent, { className: 'aquapin-popup' })
         .addTo(markersLayerRef.current)
     })
-  }, [pins])
+  }, [pins, confirmedPinIds])
+
+  // 3. Listen for clicks on the "Still Flooded?" confirmation button in popups via event delegation
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleContainerClick = (e) => {
+      const btn = e.target.closest('[data-action="confirm-pin"]')
+      if (!btn) return
+
+      const pinId = btn.getAttribute('data-pin-id')
+      if (pinId && onConfirmPin && !btn.classList.contains('is-confirmed')) {
+        onConfirmPin(pinId)
+      }
+    }
+
+    container.addEventListener('click', handleContainerClick)
+    return () => container.removeEventListener('click', handleContainerClick)
+  }, [onConfirmPin])
 
   return <div ref={containerRef} className="map-container" />
 }
 
 export default MapView
+

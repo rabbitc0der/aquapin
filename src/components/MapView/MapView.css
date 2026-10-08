@@ -100,3 +100,153 @@
   background: var(--color-primary-glow);
   animation: pulse-ring 2s ease-out infinite;
 }
+
+/* ── Leaflet Popup Dark Theme Customization ─────────────────── */
+.leaflet-popup-content-wrapper {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: var(--radius-lg, 12px) !important;
+  color: var(--color-text-primary, #f8fafc) !important;
+  box-shadow: 0 16px 32px -4px rgba(0, 0, 0, 0.55) !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content {
+  margin: 14px 16px !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  top: 10px !important;
+  right: 12px !important;
+  color: #94a3b8 !important;
+  font-size: 16px !important;
+  width: 22px !important;
+  height: 22px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── Pin Popup Internal Elements ───────────────────────────── */
+.pin-popup {
+  font-family: inherit;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 210px;
+}
+
+.pin-popup__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 14px;
+}
+
+.pin-popup__badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 9999px;
+}
+
+.pin-popup__badge--caution {
+  color: var(--color-caution, #eab308);
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.pin-popup__badge--warning {
+  color: var(--color-warning, #f97316);
+  background: rgba(249, 115, 22, 0.15);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.pin-popup__badge--danger {
+  color: var(--color-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.pin-popup__time {
+  font-size: 11px;
+  color: var(--color-text-muted, #94a3b8);
+}
+
+.pin-popup__desc {
+  font-weight: 600;
+  font-size: 13px;
+  color: #fff;
+}
+
+.pin-popup__comment {
+  font-style: italic;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 2px solid var(--color-primary, #38bdf8);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.pin-popup__footer {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pin-popup__confirm-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pin-popup__confirm-btn:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.5);
+  transform: translateY(-1px);
+}
+
+.pin-popup__confirm-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.pin-popup__confirm-btn.is-confirmed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.35);
+  cursor: default;
+}
+

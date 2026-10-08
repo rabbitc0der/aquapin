@@ -67,3 +67,40 @@
   transform: translateX(-50%);
   z-index: var(--z-fab);
 }
+
+/* ── Offline Banner: Warning bar directly below header ────── */
+.offline-banner {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  z-index: var(--z-header);
+  background: #f59e0b;
+  color: #0f172a;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 6px var(--space-4);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  animation: slide-down 0.25s ease-out;
+}
+
+.offline-banner__icon {
+  font-size: 13px;
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+

@@ -86,7 +86,7 @@ const server = http.createServer(async (req, res) => {
           res.end(response.body)
           return
         }
-      } catch (err) {
+      } catch (_err) {
         console.warn('[DevServer] DynamoDB not responding, using in-memory store.')
       }
 
@@ -116,7 +116,7 @@ const server = http.createServer(async (req, res) => {
             res.end(response.body)
             return
           }
-        } catch (err) {
+        } catch (_err) {
           console.warn('[DevServer] DynamoDB not responding, saving to in-memory store.')
         }
 
@@ -131,12 +131,13 @@ const server = http.createServer(async (req, res) => {
             comment: parsed.comment || '',
             createdAt: new Date().toISOString(),
             status: 'active',
+            confirmations: 0,
           }
           inMemoryStore.unshift(newPin)
 
           res.writeHead(201, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ message: 'Pin created (dev store)', pin: newPin }))
-        } catch (e) {
+        } catch (_e) {
           res.writeHead(400, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ error: 'Invalid JSON body' }))
         }
@@ -144,6 +145,23 @@ const server = http.createServer(async (req, res) => {
       return
     }
   }
+
+  // Confirm pin endpoint (/pins/:pinId/confirm)
+  const confirmMatch = pathname.match(/^\/(?:api\/)?pins\/([^/]+)\/confirm$/)
+  if (confirmMatch && req.method === 'POST') {
+    const pinId = decodeURIComponent(confirmMatch[1])
+    const pin = inMemoryStore.find((p) => p.pinId === pinId)
+    if (pin) {
+      pin.confirmations = (pin.confirmations || 0) + 1
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ message: 'Pin confirmed', pin }))
+      return
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ message: 'Pin confirmed (generic)', pinId }))
+    return
+  }
+
 
   // Health check endpoint
   if (pathname === '/health' || pathname === '/') {

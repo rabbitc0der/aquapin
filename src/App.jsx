@@ -5,7 +5,7 @@ import MapView, { DEFAULT_CENTER } from './components/MapView/MapView'
 import FAB         from './components/FAB/FAB'
 import ReportModal from './components/ReportModal/ReportModal'
 import Toast       from './components/Toast/Toast'
-import { getPins, postPin } from './services/api'
+import { getPins, postPin, confirmPin } from './services/api'
 
 /**
  * App — Top-level shell component.
@@ -15,17 +15,22 @@ import { getPins, postPin } from './services/api'
  *  - isModalOpen: controls the ReportModal bottom sheet
  *  - userCoords: user's current GPS coordinates [lat, lng]
  *  - isSubmitting: loading state while submitting report
+ *  - confirmedPinIds: set of pinIds verified by this user
+ *  - isOnline: browser online/offline status
  */
 function App() {
   const [pins, setPins] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [userCoords, setUserCoords] = useState(DEFAULT_CENTER)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [confirmedPinIds, setConfirmedPinIds] = useState(() => new Set())
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true))
 
   // Live auto-refresh countdown state (30 seconds)
   const REFRESH_INTERVAL = 30
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
 
   // Toast notification state
   const [toast, setToast] = useState({
@@ -78,11 +83,67 @@ function App() {
   }, [refreshPins])
 
 
+  // Online / Offline network event detection
+  useEffect(() => {
+    const onOnline = () => {
+      setIsOnline(true)
+      showToast({
+        title: 'Back online',
+        message: 'Synchronizing latest flood pins.',
+        variant: 'success',
+      })
+      refreshPins()
+    }
+    const onOffline = () => {
+      setIsOnline(false)
+      showToast({
+        title: 'You are offline',
+        message: 'Operating in cached offline mode.',
+        variant: 'warning',
+      })
+    }
+
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }, [refreshPins, showToast])
+
   const handleManualRefresh = useCallback(() => {
     setCountdown(REFRESH_INTERVAL)
     refreshPins()
   }, [refreshPins])
 
+  /**
+   * handleConfirmPin — community verifies a flood is still active
+   */
+  const handleConfirmPin = useCallback(async (pinId) => {
+    if (confirmedPinIds.has(pinId)) return
+
+    // Optimistically record the user's confirmation
+    setConfirmedPinIds((prev) => new Set(prev).add(pinId))
+    setPins((prevPins) =>
+      prevPins.map((p) =>
+        p.pinId === pinId
+          ? { ...p, confirmations: (Number(p.confirmations) || 0) + 1 }
+          : p
+      )
+    )
+
+    showToast({
+      title: 'Verification recorded!',
+      message: 'Thank you for helping keep Delhi updated.',
+      variant: 'success',
+    })
+
+    try {
+      await confirmPin(pinId)
+    } catch (err) {
+      console.warn('[AquaPin] confirmPin network warning:', err)
+    }
+  }, [confirmedPinIds, showToast])
 
   const handleLocationFound = useCallback((coords) => {
     setUserCoords(coords)
@@ -142,14 +203,24 @@ function App() {
         />
       </header>
 
+      {/* ── Offline Banner ────────────────────────────────── */}
+      {!isOnline && (
+        <div className="offline-banner" role="status">
+          <span className="offline-banner__icon" aria-hidden="true">⚠️</span>
+          <span>You are offline. Showing cached flood reports.</span>
+        </div>
+      )}
 
       {/* ── Map ───────────────────────────────────────────── */}
       <main className="app-map">
         <MapView
           pins={pins}
           onLocationFound={handleLocationFound}
+          onConfirmPin={handleConfirmPin}
+          confirmedPinIds={confirmedPinIds}
         />
       </main>
+
 
       {/* ── FAB ───────────────────────────────────────────── */}
       <div className="app-fab">
