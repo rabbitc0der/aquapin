@@ -131,7 +131,56 @@
   letter-spacing: 0.02em;
   border: 1px solid transparent;
   white-space: nowrap;
-  transition: opacity var(--transition-fast);
+  cursor: pointer;
+  background: transparent;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.legend-chip:hover {
+  transform: translateY(-1px);
+}
+
+.legend-chip:active {
+  transform: translateY(0);
+}
+
+/* Dim unselected chips when a filter is active */
+.legend-chip--dimmed {
+  opacity: 0.35;
+  filter: grayscale(0.5);
+}
+
+.legend-chip--dimmed:hover {
+  opacity: 0.8;
+  filter: none;
+}
+
+/* Active filter state glows */
+.legend-chip--active-caution {
+  background: rgba(234, 179, 8, 0.22) !important;
+  border-color: var(--color-caution) !important;
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.4);
+}
+
+.legend-chip--active-warning {
+  background: rgba(249, 115, 22, 0.22) !important;
+  border-color: var(--color-warning) !important;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.4);
+}
+
+.legend-chip--active-danger {
+  background: rgba(239, 68, 68, 0.22) !important;
+  border-color: var(--color-danger) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.legend-chip__count {
+  font-size: 10px;
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+  margin-left: 2px;
 }
 
 /* Dot indicator inside each chip */
@@ -169,6 +218,7 @@
 .legend-chip--danger .legend-chip__dot {
   background: var(--color-danger);
 }
+
 
 /* ── Responsive: hide legend labels on small screens ──────── */
 @media (max-width: 480px) {

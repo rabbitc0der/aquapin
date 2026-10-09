@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import './App.css'
 import Header      from './components/Header/Header'
 import MapView, { DEFAULT_CENTER } from './components/MapView/MapView'
@@ -12,6 +12,7 @@ import { getPins, postPin, confirmPin } from './services/api'
  *
  * State:
  *  - pins: dynamic list of flood pins from API
+ *  - selectedSeverity: active filter ('caution' | 'warning' | 'danger' | null)
  *  - isModalOpen: controls the ReportModal bottom sheet
  *  - userCoords: user's current GPS coordinates [lat, lng]
  *  - isSubmitting: loading state while submitting report
@@ -20,6 +21,7 @@ import { getPins, postPin, confirmPin } from './services/api'
  */
 function App() {
   const [pins, setPins] = useState([])
+  const [selectedSeverity, setSelectedSeverity] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [userCoords, setUserCoords] = useState(DEFAULT_CENTER)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -30,6 +32,25 @@ function App() {
   const REFRESH_INTERVAL = 30
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleToggleSeverity = useCallback((sev) => {
+    setSelectedSeverity((prev) => (prev === sev ? null : sev))
+  }, [])
+
+  // Calculate pin counts per severity
+  const pinCounts = useMemo(() => {
+    return pins.reduce((acc, pin) => {
+      acc[pin.severity] = (acc[pin.severity] || 0) + 1
+      return acc
+    }, {})
+  }, [pins])
+
+  // Filter pins based on active severity filter
+  const visiblePins = useMemo(() => {
+    if (!selectedSeverity) return pins
+    return pins.filter((p) => p.severity === selectedSeverity)
+  }, [pins, selectedSeverity])
+
 
 
   // Toast notification state
@@ -201,6 +222,9 @@ function App() {
           countdown={countdown}
           isRefreshing={isRefreshing}
           onRefresh={handleManualRefresh}
+          selectedSeverity={selectedSeverity}
+          onToggleSeverity={handleToggleSeverity}
+          pinCounts={pinCounts}
         />
       </header>
 
@@ -215,13 +239,14 @@ function App() {
       {/* ── Map ───────────────────────────────────────────── */}
       <main className="app-map">
         <MapView
-          pins={pins}
+          pins={visiblePins}
           userCoords={userCoords}
           onLocationFound={handleLocationFound}
           onConfirmPin={handleConfirmPin}
           confirmedPinIds={confirmedPinIds}
         />
       </main>
+
 
 
 
