@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './MapView.css'
+
 
 import { DEFAULT_CENTER, DEFAULT_ZOOM } from '../../constants'
 
@@ -58,21 +59,24 @@ function createUserIcon() {
  *
  * Props:
  *  @param {Array} pins — list of pin objects from backend
+ *  @param {Array} userCoords — current user coordinates [lat, lng]
  *  @param {Function} onLocationFound — callback providing user's coordinates [lat, lng]
  *  @param {Function} onConfirmPin — callback when user verifies flood is still active
  *  @param {Set|Array} confirmedPinIds — set of pinIds already confirmed by the user in this session
  */
-function MapView({ pins = [], onLocationFound, onConfirmPin, confirmedPinIds = new Set() }) {
+function MapView({ pins = [], userCoords = null, onLocationFound, onConfirmPin, confirmedPinIds = new Set() }) {
   const containerRef    = useRef(null)  // the DOM node Leaflet attaches to
   const mapRef          = useRef(null)  // the Leaflet map instance
   const markersLayerRef = useRef(null)  // Leaflet LayerGroup for dynamic pins
+  const userMarkerRef   = useRef(null)  // Leaflet marker for user's GPS pulse dot
+  const [isLocating, setIsLocating] = useState(false)
 
   // 1. Initialise map instance once on mount
   useEffect(() => {
     if (mapRef.current) return
 
     const map = L.map(containerRef.current, {
-      center:             DEFAULT_CENTER,
+      center:             userCoords || DEFAULT_CENTER,
       zoom:               DEFAULT_ZOOM,
       zoomControl:        true,
       attributionControl: true,
@@ -94,10 +98,15 @@ function MapView({ pins = [], onLocationFound, onConfirmPin, confirmedPinIds = n
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords
-          map.setView([latitude, longitude], DEFAULT_ZOOM)
-          L.marker([latitude, longitude], { icon: createUserIcon() }).addTo(map)
+          const coords = [latitude, longitude]
+          map.setView(coords, DEFAULT_ZOOM)
+          if (!userMarkerRef.current) {
+            userMarkerRef.current = L.marker(coords, { icon: createUserIcon() }).addTo(map)
+          } else {
+            userMarkerRef.current.setLatLng(coords)
+          }
           if (onLocationFound) {
-            onLocationFound([latitude, longitude])
+            onLocationFound(coords)
           }
         },
         () => {
@@ -115,8 +124,10 @@ function MapView({ pins = [], onLocationFound, onConfirmPin, confirmedPinIds = n
       map.remove()
       mapRef.current = null
       markersLayerRef.current = null
+      userMarkerRef.current = null
     }
-  }, [onLocationFound])
+  }, [onLocationFound, userCoords])
+
 
   // 2. Synchronize pins whenever props change
   useEffect(() => {
@@ -194,8 +205,75 @@ function MapView({ pins = [], onLocationFound, onConfirmPin, confirmedPinIds = n
     return () => container.removeEventListener('click', handleContainerClick)
   }, [onConfirmPin])
 
-  return <div ref={containerRef} className="map-container" />
+  // 4. Smooth recenter on user GPS ("Locate Me")
+  const handleLocateUser = () => {
+    if (!mapRef.current) return
+    setIsLocating(true)
+
+    const targetCoords = userCoords || DEFAULT_CENTER
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords
+          const coords = [latitude, longitude]
+          mapRef.current.flyTo(coords, 15, { animate: true, duration: 1.2 })
+          if (userMarkerRef.current) {
+            userMarkerRef.current.setLatLng(coords)
+          } else {
+            userMarkerRef.current = L.marker(coords, { icon: createUserIcon() }).addTo(mapRef.current)
+          }
+          if (onLocationFound) onLocationFound(coords)
+          setTimeout(() => setIsLocating(false), 1200)
+        },
+        () => {
+          mapRef.current.flyTo(targetCoords, 15, { animate: true, duration: 1.2 })
+          setTimeout(() => setIsLocating(false), 1200)
+        },
+        { enableHighAccuracy: true, timeout: 6000 }
+      )
+    } else {
+      mapRef.current.flyTo(targetCoords, 15, { animate: true, duration: 1.2 })
+      setTimeout(() => setIsLocating(false), 1200)
+    }
+  }
+
+  return (
+    <div className="map-wrapper">
+      <div ref={containerRef} className="map-container" />
+
+      {/* ── Locate Me Floating Button ─────────────────────── */}
+      <button
+        type="button"
+        className={`locate-me-btn ${isLocating ? 'locate-me-btn--locating' : ''}`}
+        onClick={handleLocateUser}
+        title="Recenter map on my location"
+        aria-label="Recenter map on my location"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          stroke="currentColor"
+          strokeWidth="2"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="locate-me-icon"
+          aria-hidden="true"
+        >
+          <line x1="12" y1="2" x2="12" y2="5" />
+          <line x1="12" y1="19" x2="12" y2="22" />
+          <line x1="2" y1="12" x2="5" y2="12" />
+          <line x1="19" y1="12" x2="22" y2="12" />
+          <circle cx="12" cy="12" r="7" />
+          <circle cx="12" cy="12" r="2" fill="currentColor" />
+        </svg>
+      </button>
+    </div>
+  )
 }
 
 export default MapView
+
 

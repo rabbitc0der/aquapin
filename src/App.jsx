@@ -216,11 +216,13 @@ function App() {
       <main className="app-map">
         <MapView
           pins={pins}
+          userCoords={userCoords}
           onLocationFound={handleLocationFound}
           onConfirmPin={handleConfirmPin}
           confirmedPinIds={confirmedPinIds}
         />
       </main>
+
 
 
       {/* ── FAB ───────────────────────────────────────────── */}

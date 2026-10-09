@@ -5,11 +5,67 @@
    our dark theme.
    ============================================================ */
 
-/* ── Map Container: fills the entire app-map region ───────── */
+/* ── Map Wrapper & Container: fills the entire app-map region ── */
+.map-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .map-container {
   width: 100%;
   height: 100%;
 }
+
+/* ── Locate Me Floating Button ─────────────────────────────── */
+.locate-me-btn {
+  position: absolute;
+  right: var(--space-4, 16px);
+  bottom: calc(var(--space-8, 32px) + 68px);
+  z-index: 500;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--glass-bg, rgba(15, 23, 42, 0.88));
+  backdrop-filter: var(--glass-blur, blur(12px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(12px));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.15));
+  color: var(--color-primary, #38bdf8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: all var(--transition-fast, 0.15s ease);
+}
+
+.locate-me-btn:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #fff;
+  transform: scale(1.06);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.3);
+}
+
+.locate-me-btn:active {
+  transform: scale(0.94);
+}
+
+.locate-me-btn--locating .locate-me-icon {
+  animation: pulse-locate 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-locate {
+  from {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
 
 /* ── Leaflet tile layer: slight dark tint ──────────────────── */
 .map-container .leaflet-tile {
