@@ -61,26 +61,44 @@ function createUserIcon() {
  *  @param {Array} pins — list of pin objects from backend
  *  @param {Array} userCoords — current user coordinates [lat, lng]
  *  @param {Function} onLocationFound — callback providing user's coordinates [lat, lng]
+ *  @param {Function} onLocationError — callback when user GPS permission is denied or fails
  *  @param {Function} onConfirmPin — callback when user verifies flood is still active
  *  @param {Set|Array} confirmedPinIds — set of pinIds already confirmed by the user in this session
  */
-function MapView({ pins = [], userCoords = null, onLocationFound, onConfirmPin, confirmedPinIds = new Set() }) {
-  const containerRef    = useRef(null)  // the DOM node Leaflet attaches to
-  const mapRef          = useRef(null)  // the Leaflet map instance
-  const markersLayerRef = useRef(null)  // Leaflet LayerGroup for dynamic pins
-  const userMarkerRef   = useRef(null)  // Leaflet marker for user's GPS pulse dot
+function MapView({
+  pins = [],
+  userCoords = null,
+  onLocationFound,
+  onLocationError,
+  onConfirmPin,
+  confirmedPinIds = new Set(),
+}) {
+  const containerRef       = useRef(null)  // the DOM node Leaflet attaches to
+  const mapRef             = useRef(null)  // the Leaflet map instance
+  const markersLayerRef    = useRef(null)  // Leaflet LayerGroup for dynamic pins
+  const userMarkerRef      = useRef(null)  // Leaflet marker for user's GPS pulse dot
+  const initialCenterRef   = useRef(userCoords || DEFAULT_CENTER)
+  const onLocationFoundRef = useRef(onLocationFound)
+  const onLocationErrorRef = useRef(onLocationError)
   const [isLocating, setIsLocating] = useState(false)
 
-  // 1. Initialise map instance once on mount
+  // Keep callback refs fresh without triggering effect re-runs
   useEffect(() => {
-    if (mapRef.current) return
+    onLocationFoundRef.current = onLocationFound
+    onLocationErrorRef.current = onLocationError
+  }, [onLocationFound, onLocationError])
+
+  // 1. Initialise map instance strictly ONCE on mount
+  useEffect(() => {
+    if (mapRef.current || !containerRef.current) return
 
     const map = L.map(containerRef.current, {
-      center:             userCoords || DEFAULT_CENTER,
+      center:             initialCenterRef.current,
       zoom:               DEFAULT_ZOOM,
       zoomControl:        true,
       attributionControl: true,
     })
+
     mapRef.current = map
 
     // OpenStreetMap tile layer
@@ -93,7 +111,7 @@ function MapView({ pins = [], userCoords = null, onLocationFound, onConfirmPin, 
     const markersLayer = L.layerGroup().addTo(map)
     markersLayerRef.current = markersLayer
 
-    // Request user GPS
+    // Initial GPS detection on load
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -105,19 +123,16 @@ function MapView({ pins = [], userCoords = null, onLocationFound, onConfirmPin, 
           } else {
             userMarkerRef.current.setLatLng(coords)
           }
-          if (onLocationFound) {
-            onLocationFound(coords)
-          }
+          onLocationFoundRef.current?.(coords)
         },
         () => {
           console.info('[AquaPin] Geolocation unavailable; using default center.')
-          if (onLocationFound) {
-            onLocationFound(DEFAULT_CENTER)
-          }
-        }
+          onLocationFoundRef.current?.(DEFAULT_CENTER)
+        },
+        { enableHighAccuracy: false, timeout: 8000 }
       )
-    } else if (onLocationFound) {
-      onLocationFound(DEFAULT_CENTER)
+    } else {
+      onLocationFoundRef.current?.(DEFAULT_CENTER)
     }
 
     return () => {
@@ -126,7 +141,18 @@ function MapView({ pins = [], userCoords = null, onLocationFound, onConfirmPin, 
       markersLayerRef.current = null
       userMarkerRef.current = null
     }
-  }, [onLocationFound, userCoords])
+  }, []) // Empty dependency array: Map initializes once and NEVER flickers or tears down
+
+  // 2. Synchronize user GPS blue dot marker whenever userCoords changes (without re-creating the map!)
+  useEffect(() => {
+    if (!mapRef.current || !userCoords) return
+    if (!userMarkerRef.current) {
+      userMarkerRef.current = L.marker(userCoords, { icon: createUserIcon() }).addTo(mapRef.current)
+    } else {
+      userMarkerRef.current.setLatLng(userCoords)
+    }
+  }, [userCoords])
+
 
 
   // 2. Synchronize pins whenever props change
@@ -207,36 +233,50 @@ function MapView({ pins = [], userCoords = null, onLocationFound, onConfirmPin, 
 
   // 4. Smooth recenter on user GPS ("Locate Me")
   const handleLocateUser = () => {
-    if (!mapRef.current) return
+    if (!mapRef.current || isLocating) return
     setIsLocating(true)
 
-    const targetCoords = userCoords || DEFAULT_CENTER
+    const fallbackCoords = userCoords || DEFAULT_CENTER
+
+    // If we already have user coordinates, smoothly fly there immediately with zero latency
+    if (userCoords) {
+      mapRef.current.flyTo(userCoords, 15, { animate: true, duration: 1.0 })
+    }
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords
           const coords = [latitude, longitude]
-          mapRef.current.flyTo(coords, 15, { animate: true, duration: 1.2 })
+          mapRef.current?.flyTo(coords, 15, { animate: true, duration: 1.0 })
           if (userMarkerRef.current) {
             userMarkerRef.current.setLatLng(coords)
-          } else {
+          } else if (mapRef.current) {
             userMarkerRef.current = L.marker(coords, { icon: createUserIcon() }).addTo(mapRef.current)
           }
-          if (onLocationFound) onLocationFound(coords)
-          setTimeout(() => setIsLocating(false), 1200)
+          onLocationFoundRef.current?.(coords)
+          setTimeout(() => setIsLocating(false), 1000)
         },
-        () => {
-          mapRef.current.flyTo(targetCoords, 15, { animate: true, duration: 1.2 })
-          setTimeout(() => setIsLocating(false), 1200)
+        (error) => {
+          if (!userCoords) {
+            mapRef.current?.flyTo(fallbackCoords, 15, { animate: true, duration: 1.0 })
+          }
+          if (error.code === 1) { // PERMISSION_DENIED
+            onLocationErrorRef.current?.('Location permission is blocked. Please enable location access in your browser settings.')
+          } else if (error.code === 3) { // TIMEOUT
+            onLocationErrorRef.current?.('GPS timed out. Centered on map default (DTU, Delhi).')
+          }
+          setTimeout(() => setIsLocating(false), 1000)
         },
-        { enableHighAccuracy: true, timeout: 6000 }
+        { enableHighAccuracy: true, timeout: 7000, maximumAge: 10000 }
       )
     } else {
-      mapRef.current.flyTo(targetCoords, 15, { animate: true, duration: 1.2 })
-      setTimeout(() => setIsLocating(false), 1200)
+      mapRef.current.flyTo(fallbackCoords, 15, { animate: true, duration: 1.0 })
+      onLocationErrorRef.current?.('Geolocation is not supported by your browser.')
+      setTimeout(() => setIsLocating(false), 1000)
     }
   }
+
 
   return (
     <div className="map-wrapper">

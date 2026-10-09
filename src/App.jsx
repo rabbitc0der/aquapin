@@ -170,8 +170,17 @@ function App() {
     setUserCoords(coords)
   }, [])
 
+  const handleLocationError = useCallback((message) => {
+    showToast({
+      title: 'Location Notice',
+      message: message || 'Using default location (DTU, Delhi).',
+      variant: 'warning',
+    })
+  }, [showToast])
+
   /**
    * handleReport — submits waterlogging report to backend
+
    */
   async function handleReport({ severity, comment }) {
     try {
@@ -242,9 +251,11 @@ function App() {
           pins={visiblePins}
           userCoords={userCoords}
           onLocationFound={handleLocationFound}
+          onLocationError={handleLocationError}
           onConfirmPin={handleConfirmPin}
           confirmedPinIds={confirmedPinIds}
         />
+
       </main>
 
 
