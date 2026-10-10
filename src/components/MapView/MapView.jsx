@@ -14,14 +14,25 @@ export { DEFAULT_CENTER, DEFAULT_ZOOM }
 /**
  * createPinIcon — Returns a Leaflet DivIcon for a given severity.
  * Uses the .aquapin-marker CSS class defined in MapView.css.
+ * Adds a camera badge for pins with AI-verified photo evidence.
  *
  * @param {'caution'|'warning'|'danger'} severity
+ * @param {boolean} hasPhoto
+ * @param {boolean} aiVerified
  * @returns {L.DivIcon}
  */
-function createPinIcon(severity) {
+function createPinIcon(severity, hasPhoto = false, aiVerified = false, isResolved = false) {
+  const isAi = Boolean(aiVerified || hasPhoto)
+  const badgeContent = isResolved
+    ? '<span class="aquapin-marker__badge aquapin-marker__badge--resolved" title="Water Cleared (Resolved)">✓</span>'
+    : (isAi ? '<span class="aquapin-marker__badge aquapin-marker__badge--ai" title="AI-Verified Photo">📷</span>' : '')
+
   return L.divIcon({
     className: '',   // prevent Leaflet adding its own white box
-    html: `<div class="aquapin-marker aquapin-marker--${severity}"></div>`,
+    html: `
+      <div class="aquapin-marker aquapin-marker--${severity} ${isAi ? 'aquapin-marker--ai' : ''} ${isResolved ? 'aquapin-marker--resolved' : ''}">
+        ${badgeContent}
+      </div>`,
     iconSize:   [36, 36],
     iconAnchor: [18, 36],  // tip of the teardrop
     popupAnchor:[0, -38],
@@ -71,6 +82,8 @@ function MapView({
   onLocationFound,
   onLocationError,
   onConfirmPin,
+  onVotePin,
+  userVotes,
   confirmedPinIds = new Set(),
 }) {
   const containerRef       = useRef(null)  // the DOM node Leaflet attaches to
@@ -161,12 +174,32 @@ function MapView({
 
     markersLayerRef.current.clearLayers()
 
-    pins.forEach(({ pinId, lat, lng, severity, comment, createdAt, confirmations = 0 }) => {
-      const isConfirmed = confirmedPinIds instanceof Set
-        ? confirmedPinIds.has(pinId)
-        : Array.isArray(confirmedPinIds) && confirmedPinIds.includes(pinId)
+    pins.forEach(({
+      pinId,
+      lat,
+      lng,
+      severity,
+      comment,
+      createdAt,
+      expiresAt,
+      status = 'active',
+      stillFloodedCount = 0,
+      clearedCount = 0,
+      confirmations = 0,
+      photoUrl,
+      aiVerified,
+      aiConfidence,
+      aiTags,
+    }) => {
+      const userVote = (userVotes instanceof Map ? userVotes.get(pinId) : null) ||
+        (confirmedPinIds instanceof Set && confirmedPinIds.has(pinId) ? 'still_flooded' : null) ||
+        (Array.isArray(confirmedPinIds) && confirmedPinIds.includes(pinId) ? 'still_flooded' : null)
 
-      const totalConfirmations = (Number(confirmations) || 0) + (isConfirmed ? 1 : 0)
+      const hasVoted = Boolean(userVote)
+      const isResolved = status === 'resolved'
+
+      const totalFlooded = (Number(stillFloodedCount) || Number(confirmations) || 1)
+      const totalCleared = Number(clearedCount) || 0
 
       const severityLabel = {
         caution: 'Ankle-deep — passable with caution',
@@ -174,62 +207,163 @@ function MapView({
         danger:  'Road blocked — do not enter',
       }[severity] || 'Waterlogging report'
 
+      const descHtml = isResolved
+        ? `<div class="pin-popup__desc pin-popup__desc--resolved">
+             <span class="pin-popup__severity-struck">${severityLabel}</span>
+             <span class="pin-popup__cleared-tag">✓ Road Clear — Safe to Traverse</span>
+           </div>`
+        : `<div class="pin-popup__desc">${severityLabel}</div>`
+
       const timeText = createdAt
         ? new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : 'Just now'
+
+      // Real-time expiry countdown
+      const nowSec = Math.floor(Date.now() / 1000)
+      const remainingSec = expiresAt ? Math.max(0, expiresAt - nowSec) : null
+      const remainingMins = remainingSec !== null ? Math.ceil(remainingSec / 60) : null
+
+      let statusPillHtml = ''
+      if (isResolved) {
+        statusPillHtml = `<span class="pin-popup__status-pill pin-popup__status-pill--resolved">✅ Cleared</span>`
+      } else if (remainingMins !== null && remainingMins > 0) {
+        statusPillHtml = `<span class="pin-popup__status-pill pin-popup__status-pill--active" title="Auto-clears unless confirmed">⏳ ${remainingMins}m left</span>`
+      } else if (remainingMins !== null && remainingMins === 0) {
+        statusPillHtml = `<span class="pin-popup__status-pill pin-popup__status-pill--expired">🕒 Expiring</span>`
+      }
 
       const commentHtml = comment
         ? `<div class="pin-popup__comment">"${comment}"</div>`
         : ''
 
+      const photoHtml = photoUrl
+        ? `
+          <div class="pin-popup__photo-box">
+            <img src="${photoUrl}" alt="Flood incident" class="pin-popup__photo" loading="lazy" />
+            ${aiVerified ? `
+              <div class="pin-popup__ai-badge-overlay">
+                <span>✓ AI Verified</span>
+                ${aiConfidence ? `<span class="pin-popup__ai-conf">${aiConfidence}%</span>` : ''}
+              </div>
+            ` : ''}
+          </div>
+        `
+        : ''
+
+      const tagsHtml = Array.isArray(aiTags) && aiTags.length > 0
+        ? `
+          <div class="pin-popup__tags">
+            ${aiTags.map((tag) => `<span class="pin-popup__tag">#${tag}</span>`).join('')}
+          </div>
+        `
+        : ''
+
+      const footerHtml = isResolved
+        ? `
+          <div class="pin-popup__resolved-banner">
+            <div class="pin-popup__resolved-icon">✅</div>
+            <div class="pin-popup__resolved-text">
+              <strong>Water Cleared</strong>
+              <span>Resolved by community consensus</span>
+            </div>
+          </div>
+        `
+        : `
+          <div class="pin-popup__consensus-section">
+            <div class="pin-popup__consensus-header">
+              <span>Community Consensus</span>
+              <span class="pin-popup__consensus-tally">${totalCleared}/2 votes to clear</span>
+            </div>
+            <div class="pin-popup__vote-grid">
+              <button
+                type="button"
+                class="pin-popup__vote-btn pin-popup__vote-btn--flooded ${userVote === 'still_flooded' ? 'is-active' : ''}"
+                data-action="vote-pin"
+                data-vote-type="still_flooded"
+                data-pin-id="${pinId}"
+                ${hasVoted ? 'disabled' : ''}
+                title="${userVote === 'still_flooded' ? 'You confirmed this flood' : 'Vote flood is still active (+15-45m extension)'}"
+              >
+                <span class="pin-popup__vote-text">🌊 ${userVote === 'still_flooded' ? 'Confirmed' : 'Still Flooded'}</span>
+                <span class="pin-popup__vote-badge">(${totalFlooded})</span>
+              </button>
+
+              <button
+                type="button"
+                class="pin-popup__vote-btn pin-popup__vote-btn--cleared ${userVote === 'cleared' ? 'is-active' : ''}"
+                data-action="vote-pin"
+                data-vote-type="cleared"
+                data-pin-id="${pinId}"
+                ${hasVoted ? 'disabled' : ''}
+                title="${userVote === 'cleared' ? 'You voted water cleared' : 'Vote water is cleared (2 votes to resolve)'}"
+              >
+                <span class="pin-popup__vote-text">✅ ${userVote === 'cleared' ? 'Voted' : 'Water Cleared'}</span>
+                <span class="pin-popup__vote-badge">(${totalCleared}/2)</span>
+              </button>
+            </div>
+          </div>
+        `
+
       const popupContent = `
-        <div class="pin-popup">
+        <div class="pin-popup ${isResolved ? 'is-resolved' : ''}">
+          ${photoHtml}
           <div class="pin-popup__header">
-            <span class="pin-popup__badge pin-popup__badge--${severity}">${severity}</span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="pin-popup__badge pin-popup__badge--${severity}">${severity}</span>
+              ${statusPillHtml}
+            </div>
             <span class="pin-popup__time">🕒 ${timeText}</span>
           </div>
-          <div class="pin-popup__desc">${severityLabel}</div>
+          ${descHtml}
           ${commentHtml}
+          ${tagsHtml}
           <div class="pin-popup__footer">
-            <button
-              type="button"
-              class="pin-popup__confirm-btn ${isConfirmed ? 'is-confirmed' : ''}"
-              data-action="confirm-pin"
-              data-pin-id="${pinId}"
-              ${isConfirmed ? 'disabled' : ''}
-              title="${isConfirmed ? 'You have verified this flood warning' : 'Confirm this flood is still active'}"
-            >
-              <span>${isConfirmed ? '✅ Confirmed by you' : '🌊 Still Flooded?'}</span>
-              ${totalConfirmations > 0 ? `<span style="opacity: 0.85;">(${totalConfirmations})</span>` : ''}
-            </button>
+            ${footerHtml}
           </div>
         </div>
       `
 
-      L.marker([lat, lng], { icon: createPinIcon(severity) })
+      L.marker([lat, lng], {
+        icon: createPinIcon(severity, Boolean(photoUrl), Boolean(aiVerified), isResolved),
+      })
         .bindPopup(popupContent, { className: 'aquapin-popup' })
         .addTo(markersLayerRef.current)
     })
-  }, [pins, confirmedPinIds])
+  }, [pins, userVotes, confirmedPinIds])
 
-  // 3. Listen for clicks on the "Still Flooded?" confirmation button in popups via event delegation
+  // 3. Listen for clicks on the consensus voting buttons in popups via event delegation
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
     const handleContainerClick = (e) => {
-      const btn = e.target.closest('[data-action="confirm-pin"]')
-      if (!btn) return
+      const voteBtn = e.target.closest('[data-action="vote-pin"]')
+      if (voteBtn) {
+        if (voteBtn.disabled || voteBtn.classList.contains('is-active')) return
+        const pinId = voteBtn.getAttribute('data-pin-id')
+        const voteType = voteBtn.getAttribute('data-vote-type') || 'still_flooded'
+        if (pinId) {
+          if (onVotePin) onVotePin(pinId, voteType)
+          else if (onConfirmPin) onConfirmPin(pinId)
+        }
+        return
+      }
 
-      const pinId = btn.getAttribute('data-pin-id')
-      if (pinId && onConfirmPin && !btn.classList.contains('is-confirmed')) {
-        onConfirmPin(pinId)
+      // Backwards-compatible legacy confirm button
+      const confirmBtn = e.target.closest('[data-action="confirm-pin"]')
+      if (confirmBtn) {
+        if (confirmBtn.disabled || confirmBtn.classList.contains('is-confirmed')) return
+        const pinId = confirmBtn.getAttribute('data-pin-id')
+        if (pinId) {
+          if (onVotePin) onVotePin(pinId, 'still_flooded')
+          else if (onConfirmPin) onConfirmPin(pinId)
+        }
       }
     }
 
     container.addEventListener('click', handleContainerClick)
     return () => container.removeEventListener('click', handleContainerClick)
-  }, [onConfirmPin])
+  }, [onVotePin, onConfirmPin])
 
   // 4. Smooth recenter on user GPS ("Locate Me")
   const handleLocateUser = () => {

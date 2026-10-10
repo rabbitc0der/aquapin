@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { PutCommand } from '@aws-sdk/lib-dynamodb'
 import { docClient, TABLE_NAME } from '../db/dynamoClient.js'
+import { analyzeFloodPhoto } from '../services/aiVisionService.js'
 
 /**
  * Standard CORS headers for API Gateway responses
@@ -13,7 +14,12 @@ const CORS_HEADERS = {
 }
 
 const ALLOWED_SEVERITIES = ['caution', 'warning', 'danger']
-const TTL_HOURS = 6
+// Rapid Urban Response TTL (Option 1)
+const TTL_MINUTES = {
+  caution: 30, // 30 mins
+  warning: 60, // 60 mins (1 hr)
+  danger: 90,  // 90 mins (1.5 hrs)
+}
 
 /**
  * AWS Lambda Handler — POST /pins
@@ -25,7 +31,8 @@ const TTL_HOURS = 6
  *   "lat": 28.7497,
  *   "lng": 77.1183,
  *   "severity": "danger" | "warning" | "caution",
- *   "comment": "Water above knee" (optional)
+ *   "comment": "Water above knee" (optional),
+ *   "photo": "data:image/jpeg;base64,..." (optional)
  * }
  */
 export async function handler(event) {
@@ -54,7 +61,7 @@ export async function handler(event) {
       }
     }
 
-    const { lat, lng, severity, comment } = body || {}
+    const { lat, lng, severity, comment, photo } = body || {}
 
     // Validation
     if (typeof lat !== 'number' || isNaN(lat) || lat < -90 || lat > 90) {
@@ -83,22 +90,52 @@ export async function handler(event) {
       }
     }
 
+    // Optional AI Photo Verification
+    let aiResult = {
+      aiVerified: false,
+      aiConfidence: 0,
+      aiTags: [],
+      aiSummary: '',
+    }
+
+    if (photo) {
+      try {
+        aiResult = await analyzeFloodPhoto({
+          photoBase64: photo,
+          userSeverity: severity,
+          comment: comment || '',
+        })
+      } catch (aiErr) {
+        console.warn('[postPin] AI verification non-blocking error:', aiErr)
+      }
+    }
+
     const now = new Date()
     const pinId = `pin_${randomUUID()}`
     const createdAt = now.toISOString()
+    const finalSeverity = aiResult.suggestedSeverity || severity
+    const ttlMin = TTL_MINUTES[finalSeverity] || 60
     // TTL in epoch seconds for DynamoDB TTL automatic cleanup
-    const expiresAt = Math.floor(now.getTime() / 1000) + TTL_HOURS * 3600
+    const expiresAt = Math.floor(now.getTime() / 1000) + ttlMin * 60
 
     const pinItem = {
       pinId,
       lat,
       lng,
-      severity,
+      severity: finalSeverity,
       comment: comment ? String(comment).slice(0, 200) : '',
       createdAt,
       expiresAt,
       status: 'active',
+      stillFloodedCount: 1,
+      clearedCount: 0,
+      confirmations: 1,
       upvotes: 1,
+      photoUrl: photo || null,
+      aiVerified: Boolean(aiResult.aiVerified),
+      aiConfidence: aiResult.aiConfidence || 0,
+      aiTags: aiResult.aiTags || [],
+      aiSummary: aiResult.aiSummary || '',
     }
 
     const command = new PutCommand({

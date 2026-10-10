@@ -231,3 +231,291 @@
 .modal-submit--active:active {
   transform: translateY(0);
 }
+
+/* ============================================================
+   AI Photo Verification & Scanner Styles
+   ============================================================ */
+
+.ai-photo-section {
+  margin-bottom: var(--space-4);
+}
+
+.ai-photo-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ai-photo-picker__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(56, 189, 248, 0.05);
+  border: 1px dashed rgba(56, 189, 248, 0.4);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.ai-photo-picker__btn:hover {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.ai-photo-picker__icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.ai-photo-picker__text {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.ai-photo-picker__text strong {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.ai-photo-picker__text small {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.ai-photo-picker__badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, #0284c7, #06b6d4);
+  color: #fff;
+  padding: 3px 7px;
+  border-radius: var(--radius-full);
+}
+
+/* Demo presets */
+.ai-demo-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 2px 4px;
+}
+
+.ai-demo-presets__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.ai-demo-preset__chip {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-primary);
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-full);
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ai-demo-preset__chip:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+/* Scanner Card (When photo is chosen) */
+.ai-scanner-card {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  position: relative;
+}
+
+.ai-scanner-preview-wrapper {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #000;
+}
+
+.ai-scanner-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ai-scanner-preview.is-scanning {
+  filter: brightness(0.8) contrast(1.1);
+}
+
+/* Animated laser scanning line */
+.ai-scanner-laser {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8, 0 0 16px #38bdf8;
+  animation: ai-scan-beam 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes ai-scan-beam {
+  0%   { top: 0%;   }
+  100% { top: 96%; }
+}
+
+.ai-scanner-remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+  z-index: 2;
+}
+
+.ai-scanner-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+/* Scanner status panel */
+.ai-scanner-status {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.ai-status-scanning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.ai-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(56, 189, 248, 0.3);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-badge-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #4ade80;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.ai-badge-unverified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.ai-summary-text {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.ai-summary-text--warning {
+  color: #fde68a;
+}
+
+.ai-tags-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.ai-tag-pill {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-muted);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.ai-tag-pill--warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+/* AI Suggested Pill on Severity Card */
+.severity-card--ai-suggested {
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+}
+
+.ai-suggested-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  margin-left: 8px;
+  vertical-align: middle;
+}

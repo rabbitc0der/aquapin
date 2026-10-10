@@ -128,6 +128,43 @@
 .aquapin-marker--warning  { background: var(--color-warning);  box-shadow: 0 4px 14px var(--color-warning-glow); }
 .aquapin-marker--danger   { background: var(--color-danger);   box-shadow: 0 4px 14px var(--color-danger-glow);  }
 
+/* AI-verified marker glow & camera indicator */
+.aquapin-marker--ai {
+  border-color: rgba(56, 189, 248, 0.9);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.8), 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* Community-resolved marker styling */
+.aquapin-marker--resolved {
+  background: #10b981 !important;
+  border-color: rgba(52, 211, 153, 0.9) !important;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.6), 0 4px 10px rgba(0, 0, 0, 0.4) !important;
+  opacity: 0.85;
+}
+
+.aquapin-marker__ai-badge,
+.aquapin-marker__badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(45deg); /* Counter-rotate the teardrop's -45deg angle */
+  font-size: 13px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+.aquapin-marker__badge--resolved {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.aquapin-marker__badge--ai {
+  font-size: 13px;
+}
+
 /* ── GPS accuracy circle (pulse animation) ─────────────────── */
 @keyframes pulse-ring {
   0%   { transform: scale(1);   opacity: 0.6; }
@@ -254,6 +291,28 @@
   color: #fff;
 }
 
+.pin-popup__desc--resolved {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pin-popup__severity-struck {
+  font-size: 11px;
+  color: #64748b;
+  text-decoration: line-through;
+  font-weight: 500;
+}
+
+.pin-popup__cleared-tag {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #34d399;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .pin-popup__comment {
   font-style: italic;
   color: #cbd5e1;
@@ -264,13 +323,252 @@
   font-size: 12px;
 }
 
+/* Photo container in popup */
+.pin-popup__photo-box {
+  position: relative;
+  width: 100%;
+  height: 125px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 4px;
+  background: #020617;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pin-popup__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pin-popup__ai-badge-overlay {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  color: #4ade80;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.pin-popup__ai-conf {
+  color: #86efac;
+  font-weight: 600;
+}
+
+.pin-popup__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.pin-popup__tag {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* ── Expiry / Status Pills ─────────────────────────────────── */
+.pin-popup__status-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  letter-spacing: 0.02em;
+}
+
+.pin-popup__status-pill--active {
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.pin-popup__status-pill--resolved {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.pin-popup__status-pill--expired {
+  background: rgba(148, 163, 184, 0.14);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* ── Community Consensus Section & Voting Grid ─────────────── */
 .pin-popup__footer {
-  margin-top: 4px;
+  margin-top: 6px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
+.pin-popup__consensus-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.pin-popup__consensus-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pin-popup__consensus-tally {
+  font-size: 10px;
+  color: #38bdf8;
+  font-weight: 700;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 1px 6px;
+  border-radius: 9999px;
+}
+
+.pin-popup__vote-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.pin-popup__vote-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+  font-family: inherit;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pin-popup__vote-text {
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.pin-popup__vote-badge {
+  font-size: 9.5px;
+  opacity: 0.85;
+}
+
+.pin-popup__vote-btn--flooded {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+.pin-popup__vote-btn--flooded:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.5);
+  transform: translateY(-1px);
+}
+
+.pin-popup__vote-btn--cleared {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.pin-popup__vote-btn--cleared:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.5);
+  transform: translateY(-1px);
+}
+
+.pin-popup__vote-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pin-popup__vote-btn.is-active {
+  opacity: 1 !important;
+  font-weight: 700;
+  cursor: default;
+}
+
+.pin-popup__vote-btn--flooded.is-active {
+  background: rgba(56, 189, 248, 0.28);
+  border-color: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+}
+
+.pin-popup__vote-btn--cleared.is-active {
+  background: rgba(16, 185, 129, 0.28);
+  border-color: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+/* ── Resolved Banner ───────────────────────────────────────── */
+.pin-popup__resolved-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 8px;
+  color: #34d399;
+}
+
+.pin-popup__resolved-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.pin-popup__resolved-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.25;
+}
+
+.pin-popup__resolved-text strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6ee7b7;
+}
+
+.pin-popup__resolved-text span {
+  font-size: 11px;
+  color: #a7f3d0;
+  opacity: 0.9;
+}
+
+/* Backwards-compatible legacy confirm button fallback */
 .pin-popup__confirm-btn {
   width: 100%;
   display: flex;
@@ -293,10 +591,6 @@
   background: rgba(56, 189, 248, 0.22);
   border-color: rgba(56, 189, 248, 0.5);
   transform: translateY(-1px);
-}
-
-.pin-popup__confirm-btn:active:not(:disabled) {
-  transform: translateY(0);
 }
 
 .pin-popup__confirm-btn.is-confirmed {

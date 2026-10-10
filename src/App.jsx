@@ -5,7 +5,7 @@ import MapView, { DEFAULT_CENTER } from './components/MapView/MapView'
 import FAB         from './components/FAB/FAB'
 import ReportModal from './components/ReportModal/ReportModal'
 import Toast       from './components/Toast/Toast'
-import { getPins, postPin, confirmPin } from './services/api'
+import { getPins, postPin, votePin } from './services/api'
 
 /**
  * App — Top-level shell component.
@@ -17,6 +17,7 @@ import { getPins, postPin, confirmPin } from './services/api'
  *  - userCoords: user's current GPS coordinates [lat, lng]
  *  - isSubmitting: loading state while submitting report
  *  - confirmedPinIds: set of pinIds verified by this user
+ *  - userVotes: map of pinId -> 'still_flooded' | 'cleared'
  *  - isOnline: browser online/offline status
  */
 function App() {
@@ -26,6 +27,7 @@ function App() {
   const [userCoords, setUserCoords] = useState(DEFAULT_CENTER)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [confirmedPinIds, setConfirmedPinIds] = useState(() => new Set())
+  const [userVotes, setUserVotes] = useState(() => new Map())
   const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true))
 
   // Live auto-refresh countdown state (30 seconds)
@@ -37,10 +39,12 @@ function App() {
     setSelectedSeverity((prev) => (prev === sev ? null : sev))
   }, [])
 
-  // Calculate pin counts per severity
+  // Calculate active flood pin counts per severity (excludes resolved)
   const pinCounts = useMemo(() => {
     return pins.reduce((acc, pin) => {
-      acc[pin.severity] = (acc[pin.severity] || 0) + 1
+      if (pin.status !== 'resolved') {
+        acc[pin.severity] = (acc[pin.severity] || 0) + 1
+      }
       return acc
     }, {})
   }, [pins])
@@ -138,33 +142,71 @@ function App() {
   }, [refreshPins])
 
   /**
-   * handleConfirmPin — community verifies a flood is still active
+   * handleVotePin — community consensus ("Still Flooded?" vs "Water Cleared")
    */
-  const handleConfirmPin = useCallback(async (pinId) => {
-    if (confirmedPinIds.has(pinId)) return
+  const handleVotePin = useCallback(async (pinId, voteType = 'still_flooded') => {
+    if (userVotes.has(pinId)) return
 
-    // Optimistically record the user's confirmation
+    // Optimistically record the user's vote
+    setUserVotes((prev) => new Map(prev).set(pinId, voteType))
     setConfirmedPinIds((prev) => new Set(prev).add(pinId))
-    setPins((prevPins) =>
-      prevPins.map((p) =>
-        p.pinId === pinId
-          ? { ...p, confirmations: (Number(p.confirmations) || 0) + 1 }
-          : p
-      )
-    )
 
-    showToast({
-      title: 'Verification recorded!',
-      message: 'Thank you for helping keep Delhi updated.',
-      variant: 'success',
-    })
+    if (voteType === 'still_flooded') {
+      setPins((prevPins) =>
+        prevPins.map((p) => {
+          if (p.pinId !== pinId) return p
+          const currentFlooded = (Number(p.stillFloodedCount) || Number(p.confirmations) || 0) + 1
+          return {
+            ...p,
+            stillFloodedCount: currentFlooded,
+            confirmations: currentFlooded,
+          }
+        })
+      )
+      showToast({
+        title: 'Active Flood Confirmed! 🌊',
+        message: 'Thank you! Alert extended to keep commuters safe.',
+        variant: 'info',
+      })
+    } else if (voteType === 'cleared') {
+      let willBeResolved = false
+      setPins((prevPins) =>
+        prevPins.map((p) => {
+          if (p.pinId !== pinId) return p
+          const newCleared = (Number(p.clearedCount) || 0) + 1
+          willBeResolved = newCleared >= 2
+          return {
+            ...p,
+            clearedCount: newCleared,
+            status: willBeResolved ? 'resolved' : p.status,
+            resolvedAt: willBeResolved ? new Date().toISOString() : p.resolvedAt,
+          }
+        })
+      )
+      showToast({
+        title: willBeResolved ? 'Water Cleared! Consensus Reached ✅' : 'Clearance Vote Recorded 👍',
+        message: willBeResolved
+          ? 'Pin marked as resolved by community consensus.'
+          : '1 more community vote needed to resolve this pin.',
+        variant: willBeResolved ? 'success' : 'info',
+      })
+    }
 
     try {
-      await confirmPin(pinId)
+      const result = await votePin(pinId, voteType)
+      if (result && result.pin) {
+        setPins((prevPins) =>
+          prevPins.map((p) => (p.pinId === pinId ? { ...p, ...result.pin } : p))
+        )
+      }
     } catch (err) {
-      console.warn('[AquaPin] confirmPin network warning:', err)
+      console.warn('[AquaPin] votePin network warning:', err)
     }
-  }, [confirmedPinIds, showToast])
+  }, [userVotes, showToast])
+
+  const handleConfirmPin = useCallback((pinId) => {
+    return handleVotePin(pinId, 'still_flooded')
+  }, [handleVotePin])
 
   const handleLocationFound = useCallback((coords) => {
     setUserCoords(coords)
@@ -182,7 +224,7 @@ function App() {
    * handleReport — submits waterlogging report to backend
 
    */
-  async function handleReport({ severity, comment }) {
+  async function handleReport({ severity, comment, photo, aiResult }) {
     try {
       setIsSubmitting(true)
 
@@ -198,8 +240,13 @@ function App() {
         lng,
         severity,
         comment: comment || 'Reported via AquaPin mobile web',
+        photo: photo || null,
+        pixelMetrics: aiResult ? {
+          isFloodWater: aiResult.aiVerified,
+          isPortraitOrSelfie: !aiResult.aiVerified,
+          waterRatio: aiResult.aiVerified ? 0.35 : 0.05,
+        } : null,
       })
-
 
       if (newPin) {
         setPins((prev) => [newPin, ...prev])
@@ -207,8 +254,10 @@ function App() {
 
       setIsModalOpen(false)
       showToast({
-        title:   'Report submitted!',
-        message: 'Warning added to the community map.',
+        title:   newPin?.aiVerified ? '🤖 AI-Verified Report Submitted!' : 'Report submitted!',
+        message: newPin?.aiVerified
+          ? `Validated with ${newPin.aiConfidence}% confidence.`
+          : 'Warning added to the community map.',
         variant: 'success',
       })
     } catch (err) {
@@ -253,6 +302,8 @@ function App() {
           onLocationFound={handleLocationFound}
           onLocationError={handleLocationError}
           onConfirmPin={handleConfirmPin}
+          onVotePin={handleVotePin}
+          userVotes={userVotes}
           confirmedPinIds={confirmedPinIds}
         />
 

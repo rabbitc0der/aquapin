@@ -34,10 +34,10 @@ export async function getPins() {
 
 /**
  * Submit a new waterlogging pin
- * @param {Object} pinData - { lat, lng, severity, comment }
+ * @param {Object} pinData - { lat, lng, severity, comment, photo, pixelMetrics }
  * @returns {Promise<Object>} Created pin object
  */
-export async function postPin({ lat, lng, severity, comment }) {
+export async function postPin({ lat, lng, severity, comment, photo, pixelMetrics = null }) {
   const res = await fetch(`${API_BASE_URL}/pins`, {
     method: 'POST',
     headers: {
@@ -48,6 +48,8 @@ export async function postPin({ lat, lng, severity, comment }) {
       lng: Number(lng),
       severity,
       comment: comment || '',
+      photo: photo || null,
+      pixelMetrics: pixelMetrics || null,
     }),
   })
 
@@ -61,24 +63,61 @@ export async function postPin({ lat, lng, severity, comment }) {
 }
 
 /**
- * Confirm a waterlogging pin ("Still Flooded?" upvote)
+ * Pre-submit AI Photo Analysis
+ * @param {Object} params - { photo, severity, comment, pixelMetrics }
+ * @returns {Promise<Object>} AI analysis details
+ */
+export async function analyzePhoto({ photo, severity = 'caution', comment = '', pixelMetrics = null }) {
+  const res = await fetch(`${API_BASE_URL}/api/analyze-photo`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      photo,
+      severity,
+      comment,
+      pixelMetrics,
+    }),
+  })
+
+  if (!res.ok) {
+    throw new Error('AI analysis failed')
+  }
+
+  return await res.json()
+}
+
+/**
+ * Submit community consensus vote on a pin
  * @param {string} pinId
+ * @param {'still_flooded' | 'cleared'} voteType
  * @returns {Promise<Object>}
  */
-export async function confirmPin(pinId) {
+export async function votePin(pinId, voteType = 'still_flooded') {
   try {
-    const res = await fetch(`${API_BASE_URL}/pins/${encodeURIComponent(pinId)}/confirm`, {
+    const res = await fetch(`${API_BASE_URL}/pins/${encodeURIComponent(pinId)}/vote`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ voteType }),
     })
     if (res.ok) {
       return await res.json()
     }
   } catch (error) {
-    console.warn('[AquaPin API] confirmPin request warning:', error)
+    console.warn('[AquaPin API] votePin request warning:', error)
   }
-  return { success: true }
+  return { success: false }
+}
+
+/**
+ * Confirm a waterlogging pin ("Still Flooded?" upvote) - legacy wrapper
+ * @param {string} pinId
+ * @returns {Promise<Object>}
+ */
+export async function confirmPin(pinId) {
+  return votePin(pinId, 'still_flooded')
 }
 
