@@ -6,11 +6,17 @@ import { analyzeFloodPhoto } from '../services/aiVisionService.js'
 /**
  * Standard CORS headers for API Gateway responses
  */
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*'
+
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Headers': 'Content-Type,Authorization',
   'Access-Control-Allow-Methods': 'OPTIONS,GET,POST',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
 }
 
 const ALLOWED_SEVERITIES = ['caution', 'warning', 'danger']
@@ -22,21 +28,24 @@ const TTL_MINUTES = {
 }
 
 /**
+ * Validates whether an incoming photo payload is a legitimate image URI
+ */
+function isValidImagePayload(photo) {
+  if (!photo || typeof photo !== 'string') return false
+  if (photo.length > 5 * 1024 * 1024) return false // 5MB cap
+  if (photo.startsWith('https://')) return true
+  if (/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(photo)) return true
+  return false
+}
+
+/**
  * AWS Lambda Handler — POST /pins
  *
  * Saves a waterlogging report pin into DynamoDB.
- *
- * Expected payload:
- * {
- *   "lat": 28.7497,
- *   "lng": 77.1183,
- *   "severity": "danger" | "warning" | "caution",
- *   "comment": "Water above knee" (optional),
- *   "photo": "data:image/jpeg;base64,..." (optional)
- * }
  */
 export async function handler(event) {
-  console.log('[postPin] Event received:', JSON.stringify(event))
+  // Redact personal request payload and log only route metadata
+  console.log('[postPin] Request received: method=%s, path=%s', event.httpMethod, event.rawPath || event.path)
 
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
@@ -52,7 +61,7 @@ export async function handler(event) {
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body)
-      } catch (err) {
+      } catch {
         return {
           statusCode: 400,
           headers: CORS_HEADERS,
@@ -90,6 +99,24 @@ export async function handler(event) {
       }
     }
 
+    // Photo validation (prevent arbitrary executable or HTML injection)
+    let safePhoto = null
+    if (photo) {
+      if (!isValidImagePayload(photo)) {
+        return {
+          statusCode: 400,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({ error: 'Invalid image format. Allowed formats: HTTPS image URL or Base64 data:image/(jpeg|png|webp).' }),
+        }
+      }
+      safePhoto = photo
+    }
+
+    // Sanitize comment to printable characters only
+    const sanitizedComment = comment
+      ? String(comment).replace(/[^\x20-\x7E\t\n\r]/g, '').trim().slice(0, 200)
+      : ''
+
     // Optional AI Photo Verification
     let aiResult = {
       aiVerified: false,
@@ -98,15 +125,15 @@ export async function handler(event) {
       aiSummary: '',
     }
 
-    if (photo) {
+    if (safePhoto) {
       try {
         aiResult = await analyzeFloodPhoto({
-          photoBase64: photo,
+          photoBase64: safePhoto,
           userSeverity: severity,
-          comment: comment || '',
+          comment: sanitizedComment,
         })
       } catch (aiErr) {
-        console.warn('[postPin] AI verification non-blocking error:', aiErr)
+        console.warn('[postPin] AI verification non-blocking error:', aiErr?.message || 'Processing warning')
       }
     }
 
@@ -120,10 +147,10 @@ export async function handler(event) {
 
     const pinItem = {
       pinId,
-      lat,
-      lng,
+      lat: Number(lat.toFixed(5)),
+      lng: Number(lng.toFixed(5)),
       severity: finalSeverity,
-      comment: comment ? String(comment).slice(0, 200) : '',
+      comment: sanitizedComment,
       createdAt,
       expiresAt,
       status: 'active',
@@ -131,7 +158,7 @@ export async function handler(event) {
       clearedCount: 0,
       confirmations: 1,
       upvotes: 1,
-      photoUrl: photo || null,
+      photoUrl: safePhoto,
       aiVerified: Boolean(aiResult.aiVerified),
       aiConfidence: aiResult.aiConfidence || 0,
       aiTags: aiResult.aiTags || [],
@@ -145,7 +172,7 @@ export async function handler(event) {
 
     await docClient.send(command)
 
-    console.log('[postPin] Saved successfully:', pinId)
+    console.log('[postPin] Saved successfully: %s', pinId)
 
     return {
       statusCode: 201,
@@ -156,13 +183,14 @@ export async function handler(event) {
       }),
     }
   } catch (error) {
-    console.error('[postPin] Error writing to DynamoDB:', error)
+    const correlationId = randomUUID()
+    console.error(`[postPin][${correlationId}] Error writing to DynamoDB:`, error)
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
       body: JSON.stringify({
-        error: 'Failed to record pin',
-        details: error.message,
+        error: 'Failed to record pin due to internal server error',
+        correlationId,
       }),
     }
   }

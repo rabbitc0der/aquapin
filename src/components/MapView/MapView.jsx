@@ -9,6 +9,38 @@ import { DEFAULT_CENTER, DEFAULT_ZOOM } from '../../constants'
 // Re-export constants for backwards compatibility
 export { DEFAULT_CENTER, DEFAULT_ZOOM }
 
+// ── Security Helpers: XSS Sanitization & Media Validation ───
+
+/**
+ * Encodes special HTML characters to prevent Stored XSS inside Leaflet popups
+ * @param {string|any} str
+ * @returns {string}
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Validates whether a media URL is safe to render in an <img> tag
+ * Blocks dangerous schemes (e.g. javascript:, data:text/html)
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isSafeMediaUrl(url) {
+  if (!url || typeof url !== 'string') return false
+  const trimmed = url.trim()
+  if (trimmed.startsWith('https://')) return true
+  if (trimmed.startsWith('http://localhost') || trimmed.startsWith('http://127.0.0.1')) return true
+  if (/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)) return true
+  return false
+}
+
 // ── Helper: create a custom teardrop marker icon ─────────────
 
 /**
@@ -201,11 +233,14 @@ function MapView({
       const totalFlooded = (Number(stillFloodedCount) || Number(confirmations) || 1)
       const totalCleared = Number(clearedCount) || 0
 
-      const severityLabel = {
+      const rawSeverityLabel = {
         caution: 'Ankle-deep — passable with caution',
         warning: 'Knee-deep — avoid if possible',
         danger:  'Road blocked — do not enter',
       }[severity] || 'Waterlogging report'
+      const severityLabel = escapeHtml(rawSeverityLabel)
+      const safeSeverity = escapeHtml(severity || 'caution')
+      const safePinId = escapeHtml(pinId)
 
       const descHtml = isResolved
         ? `<div class="pin-popup__desc pin-popup__desc--resolved">
@@ -214,9 +249,11 @@ function MapView({
            </div>`
         : `<div class="pin-popup__desc">${severityLabel}</div>`
 
-      const timeText = createdAt
-        ? new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : 'Just now'
+      const timeText = escapeHtml(
+        createdAt
+          ? new Date(createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : 'Just now'
+      )
 
       // Real-time expiry countdown
       const nowSec = Math.floor(Date.now() / 1000)
@@ -233,17 +270,19 @@ function MapView({
       }
 
       const commentHtml = comment
-        ? `<div class="pin-popup__comment">"${comment}"</div>`
+        ? `<div class="pin-popup__comment">"${escapeHtml(comment)}"</div>`
         : ''
 
-      const photoHtml = photoUrl
+      const isSafePhoto = isSafeMediaUrl(photoUrl)
+      const safeConf = Math.round(Number(aiConfidence) || 0)
+      const photoHtml = isSafePhoto
         ? `
           <div class="pin-popup__photo-box">
-            <img src="${photoUrl}" alt="Flood incident" class="pin-popup__photo" loading="lazy" />
+            <img src="${escapeHtml(photoUrl)}" alt="Flood incident" class="pin-popup__photo" loading="lazy" />
             ${aiVerified ? `
               <div class="pin-popup__ai-badge-overlay">
                 <span>✓ AI Verified</span>
-                ${aiConfidence ? `<span class="pin-popup__ai-conf">${aiConfidence}%</span>` : ''}
+                ${safeConf > 0 ? `<span class="pin-popup__ai-conf">${safeConf}%</span>` : ''}
               </div>
             ` : ''}
           </div>
@@ -253,7 +292,7 @@ function MapView({
       const tagsHtml = Array.isArray(aiTags) && aiTags.length > 0
         ? `
           <div class="pin-popup__tags">
-            ${aiTags.map((tag) => `<span class="pin-popup__tag">#${tag}</span>`).join('')}
+            ${aiTags.map((tag) => `<span class="pin-popup__tag">#${escapeHtml(tag)}</span>`).join('')}
           </div>
         `
         : ''
@@ -280,7 +319,7 @@ function MapView({
                 class="pin-popup__vote-btn pin-popup__vote-btn--flooded ${userVote === 'still_flooded' ? 'is-active' : ''}"
                 data-action="vote-pin"
                 data-vote-type="still_flooded"
-                data-pin-id="${pinId}"
+                data-pin-id="${safePinId}"
                 ${hasVoted ? 'disabled' : ''}
                 title="${userVote === 'still_flooded' ? 'You confirmed this flood' : 'Vote flood is still active (+15-45m extension)'}"
               >
@@ -293,7 +332,7 @@ function MapView({
                 class="pin-popup__vote-btn pin-popup__vote-btn--cleared ${userVote === 'cleared' ? 'is-active' : ''}"
                 data-action="vote-pin"
                 data-vote-type="cleared"
-                data-pin-id="${pinId}"
+                data-pin-id="${safePinId}"
                 ${hasVoted ? 'disabled' : ''}
                 title="${userVote === 'cleared' ? 'You voted water cleared' : 'Vote water is cleared (2 votes to resolve)'}"
               >
@@ -309,7 +348,7 @@ function MapView({
           ${photoHtml}
           <div class="pin-popup__header">
             <div style="display: flex; align-items: center; gap: 6px;">
-              <span class="pin-popup__badge pin-popup__badge--${severity}">${severity}</span>
+              <span class="pin-popup__badge pin-popup__badge--${safeSeverity}">${safeSeverity}</span>
               ${statusPillHtml}
             </div>
             <span class="pin-popup__time">🕒 ${timeText}</span>

@@ -26,3 +26,13 @@ dist-ssr
 # Scratch scripts and temporary files
 scratch/
 image.png
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+samconfig.toml
+aws-credentials.json
+*.pem
+*.key
+

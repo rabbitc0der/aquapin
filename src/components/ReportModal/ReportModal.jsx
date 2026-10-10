@@ -237,7 +237,7 @@ function ReportModal({ isOpen, onClose, onSubmit, isSubmitting = false, userCoor
         setSelected(null)
       }
       await runAiScan(dataUrl, demo.severity, demo.comment, pixelMetrics)
-    } catch (_err) {
+    } catch {
       // In case CORS blocks raw canvas draw of remote URL, use URL directly with preset metrics
       setPhoto(demo.url)
       if (!comment) setComment(demo.comment)

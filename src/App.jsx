@@ -232,8 +232,8 @@ function App() {
       const jitterLat = (Math.random() - 0.5) * 0.0005
       const jitterLng = (Math.random() - 0.5) * 0.0005
 
-      const lat = userCoords[0] + jitterLat
-      const lng = userCoords[1] + jitterLng
+      const lat = Number((userCoords[0] + jitterLat).toFixed(5))
+      const lng = Number((userCoords[1] + jitterLng).toFixed(5))
 
       const newPin = await postPin({
         lat,

@@ -265,6 +265,20 @@ Real-time pre-submission AI analysis for uploaded photo buffers.
 
 ---
 
+## 🔒 Security Architecture & Launch Hardening
+
+AquaPin implements a defense-in-depth posture adhering to the **5 Pre-Launch Security Audits**:
+
+| Audit Domain | Controls Implemented |
+|---|---|
+| **01. Secret Leak Prevention** | Zero secrets in source code. `.gitignore` explicitly blocks `.env*`, AWS credentials, and `.pem`/`.key` files. `.env.example` templates provided. Automated credential scanning confirmed no keys committed in Git history. *(Security Warning: Rotate any local development AWS credentials periodically).* |
+| **02. Personal Data Flow** | **Zero-PII Storage Policy**. No user accounts, passwords, emails, or phone numbers collected. Coordinates rounded to 5 decimal places (~1.1m precision) to prevent micro-tracking. CloudWatch/console logs redact sensitive request payloads and base64 imagery. |
+| **03. Pre-Deploy Production Audit** | Hardened security headers on all responses (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security`, `Content-Security-Policy`). Sanitized error responses with opaque UUID `correlationId` (no internal stack traces or database schema leaked). |
+| **04. Deep Logic & XSS Protection** | HTML entity sanitization (`escapeHtml`) on all user comments, severity tags, and pin popups prevents Stored XSS (CWE-79). Strict URL scheme validation (`isSafeMediaUrl`) blocks `javascript:` and arbitrary URI attacks. Payload stream capped at 5MB with 413 rejection to prevent heap exhaustion. |
+| **05. Attacker Perspective Defense** | Sliding-window IP rate limiting on pin creation (10/min), photo analysis (15/min), and consensus voting (20/min). Duplicate voting prevention per IP per pin prevents malicious clearance vote stacking or artificial TTL extension. |
+
+---
+
 ## 🛠️ Tech Stack
 
 | Layer | Technology |

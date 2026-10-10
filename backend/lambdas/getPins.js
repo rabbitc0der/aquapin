@@ -1,14 +1,21 @@
+import { randomUUID } from 'crypto'
 import { ScanCommand } from '@aws-sdk/lib-dynamodb'
 import { docClient, TABLE_NAME } from '../db/dynamoClient.js'
 
 /**
- * Standard CORS headers for API Gateway responses
+ * Standard CORS and Security headers for API Gateway responses
  */
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*'
+
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
   'Access-Control-Allow-Headers': 'Content-Type,Authorization',
   'Access-Control-Allow-Methods': 'OPTIONS,GET,POST',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
 }
 
 /**
@@ -19,7 +26,8 @@ const CORS_HEADERS = {
  * ?minLat=28.7&maxLat=28.8&minLng=77.1&maxLng=77.2
  */
 export async function handler(event) {
-  console.log('[getPins] Event received:', JSON.stringify(event))
+  // Redact personal request payload and log only route metadata
+  console.log('[getPins] Request received: method=%s, path=%s', event.httpMethod, event.rawPath || event.path)
 
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
@@ -36,7 +44,7 @@ export async function handler(event) {
 
     const nowEpoch = Math.floor(Date.now() / 1000)
 
-    // Scan DynamoDB for active pins (for production scale, GeoHash or GSI can be used)
+    // Scan DynamoDB for active pins (bounded limit of 100 to prevent resource exhaustion)
     const scanCommand = new ScanCommand({
       TableName: TABLE_NAME,
       Limit: 100,
@@ -53,20 +61,22 @@ export async function handler(event) {
       return pin.status !== 'resolved'
     })
 
-    // Apply optional bounding box filter if params are provided
-    if (minLat && maxLat && minLng && maxLng) {
+    // Apply optional bounding box filter if valid numeric params are provided
+    if (minLat !== undefined && maxLat !== undefined && minLng !== undefined && maxLng !== undefined) {
       const minLt = parseFloat(minLat)
       const maxLt = parseFloat(maxLat)
       const minLg = parseFloat(minLng)
       const maxLg = parseFloat(maxLng)
 
-      pins = pins.filter(
-        (pin) =>
-          pin.lat >= minLt &&
-          pin.lat <= maxLt &&
-          pin.lng >= minLg &&
-          pin.lng <= maxLg
-      )
+      if (!isNaN(minLt) && !isNaN(maxLt) && !isNaN(minLg) && !isNaN(maxLg)) {
+        pins = pins.filter(
+          (pin) =>
+            pin.lat >= minLt &&
+            pin.lat <= maxLt &&
+            pin.lng >= minLg &&
+            pin.lng <= maxLg
+        )
+      }
     }
 
     // Sort newest first
@@ -81,13 +91,14 @@ export async function handler(event) {
       }),
     }
   } catch (error) {
-    console.error('[getPins] Error querying DynamoDB:', error)
+    const correlationId = randomUUID()
+    console.error(`[getPins][${correlationId}] Error querying DynamoDB:`, error)
     return {
       statusCode: 500,
       headers: CORS_HEADERS,
       body: JSON.stringify({
-        error: 'Failed to retrieve pins',
-        details: error.message,
+        error: 'Failed to retrieve pins due to internal server error',
+        correlationId,
       }),
     }
   }
